@@ -1,0 +1,16 @@
+.env
+.env.*
+!.env.example
+
+cache/
+out/
+broadcast/
+
+store/data/
+.e2e/
+
+node_modules/
+web/dist/
+
+*.log
+.DS_Store

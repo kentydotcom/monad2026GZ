@@ -1,0 +1,14 @@
+.git
+node_modules
+web/node_modules
+store/node_modules
+web/dist
+cache
+out
+broadcast
+.e2e
+store/data
+screenshots
+*.log
+.env
+.env.*
