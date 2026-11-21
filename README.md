@@ -120,6 +120,21 @@ fly deploy --app wyrvel-blitz --region sin
 
 The store asks the node for the pending nonce and then assigns the next nonce itself, so two pins from one process do not reuse a nonce. A failed send reloads the pending nonce before the next attempt.
 
+## Private chain
+
+The Chain tab is a separate proof of concept. It does not change the Monad seal, the contract ABI, or the files already in the team vault.
+
+It is block-body pruning on a leader-ordered chain: one leader process and two replica processes. Headers stay hash-linked. An authorized prune removes the active body file on those processes. It is not chameleon-hash redaction, not encryption-key destruction, and not a proof that every copy is gone. Backups and operator snapshots are outside the claim. Removing an active body is not a forensic overwrite guarantee. The three processes are not BFT. On one machine they are one failure domain.
+
+New files live only under `/data/chain/`. Existing `/data/index.json` and `/data/payloads` are not migrated and must not be deleted.
+
+Measured on this build: the store process is about 50 MB proportional, and the three chain processes add about 130 MB proportional. `fly.toml` sets `WYRVEL_CHAIN=1` so they start on the existing 512 MB machine. Rollback is a redeploy with that variable removed or set to `0`. Leave the volume in place. Do not run `fly volumes destroy`.
+
+```bash
+./scripts/pchain-e2e.sh
+./scripts/pchain-e2e.sh --ci
+```
+
 ## Note
 
 This is a hackathon prototype: a hash pin, a real private erase, and a second-party check. WYRVEL is a temporary working name, not a filed mark.

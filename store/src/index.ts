@@ -1,5 +1,6 @@
 import { resolve } from "node:path";
 import { Chain } from "./chain.js";
+import { ChainError, startCluster } from "./privatechain.js";
 import { Service } from "./service.js";
 import { startServer } from "./server.js";
 import { Vault } from "./vault.js";
@@ -29,7 +30,16 @@ await chain.loadArtifact();
 await chain.refresh();
 const service = new Service(vault, chain);
 
-const server = await startServer({ service, host, port, staticDir, localAdmin, gatePassword });
+let privateChain: Awaited<ReturnType<typeof startCluster>> | null = null;
+if (process.env.WYRVEL_CHAIN === "1") {
+  try {
+    privateChain = await startCluster(dataDir);
+  } catch (err) {
+    console.error(JSON.stringify({ privateChain: err instanceof ChainError ? err.code : "unavailable" }));
+  }
+}
+
+const server = await startServer({ service, host, port, staticDir, localAdmin, gatePassword, privateChain });
 console.log(
   JSON.stringify({
     listening: `${host}:${server.port}`,
@@ -38,8 +48,24 @@ console.log(
     contract: chain.contractAddress,
     hash: "keccak256",
     gate: gatePassword ? "on" : "off",
+    privateChain: privateChain ? "up" : "off",
   }),
 );
+
+let closing = false;
+async function shutdown(): Promise<void> {
+  if (closing) return;
+  closing = true;
+  await privateChain?.stop();
+  await server.close();
+  process.exit(0);
+}
+process.on("SIGTERM", () => {
+  void shutdown();
+});
+process.on("SIGINT", () => {
+  void shutdown();
+});
 
 function blankToNull(value: string | undefined): string | null {
   const trimmed = value?.trim() ?? "";

@@ -564,6 +564,7 @@ Seal ${CONTRACT:-not deployed yet}.
   5  Verify the payload is unrecoverable
   6  Verify the on-chain seal is unchanged
   a  Run all six steps
+  p  Private chain checks
   q  Quit
 
 EOF
@@ -577,8 +578,9 @@ EOF
       5) step_gone ;;
       6) step_seal ;;
       a) run_all ;;
+      p) "$ROOT/scripts/pchain-e2e.sh" ;;
       q) say "Stopped."; exit 0 ;;
-      *) printf 'Enter 1-6, a, or q.\n' ;;
+      *) printf 'Enter 1-6, a, p, or q.\n' ;;
     esac
   done
 }

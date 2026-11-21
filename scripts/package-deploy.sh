@@ -66,6 +66,17 @@ Expected testnet signer: 0xD3Cea1317b62cB5C0CDe7e8a98cD80bBA2DC671e
 
 The volume is mounted at /data. Without it, the team store does not survive a restart.
 Erase removes only that team copy. The Monad seal stays.
+
+Private chain
+  fly.toml sets WYRVEL_CHAIN=1. That starts three extra processes on the same
+  512 MB machine: one leader and two replicas. They are not BFT and they are
+  not separate failure domains. Measured proportional memory is about 50 MB
+  for the store plus about 130 MB for the three processes.
+  Their files are created under /data/chain/ only.
+  Do not delete /data, /data/index.json, or /data/payloads.
+  Rollback: redeploy with WYRVEL_CHAIN unset or set to 0. Leave the volume.
+  Do not run fly volumes destroy. Do not change the seal contract or the secrets.
+  ./scripts/pchain-e2e.sh --ci runs the isolated checks and does not contact Monad.
 EOF
 (
   cd "$DEST"

@@ -4,6 +4,9 @@ primary_region = "sin"
 [build]
   dockerfile = "Dockerfile"
 
+[env]
+  WYRVEL_CHAIN = "1"
+
 [http_service]
   internal_port = 8787
   force_https = true

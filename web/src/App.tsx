@@ -13,6 +13,7 @@ import {
   type Meta,
   type StepResponse,
 } from "./api";
+import { ChainPanel } from "./ChainPanel";
 import { EvidencePanel } from "./EvidencePanel";
 import { SAMPLE_NOTE, freshEvidence, noteCheck, noteCommit } from "./evidence";
 import { HashDisc, IconChain, IconCheck, IconErase, IconPin, SealFigure } from "./icons";
@@ -26,6 +27,7 @@ const TABS = [
   { id: "check", key: "tabCheck" },
   { id: "why", key: "tabWhy" },
   { id: "e2e", key: "tabE2e" },
+  { id: "chain", key: "tabChain" },
 ] as const;
 
 type TabId = (typeof TABS)[number]["id"];
@@ -187,6 +189,7 @@ export function App() {
         ) : null}
         {tab === "why" ? <WhyPanel /> : null}
         {tab === "e2e" ? <E2EPanel step={step} /> : null}
+        {tab === "chain" ? <ChainPanel /> : null}
         <footer className="foot">
           <p>{t.byline}</p>
           <p>{t.workingName}</p>
@@ -233,6 +236,7 @@ function Overview() {
         <li>{t.overviewB1}</li>
         <li>{t.overviewB2}</li>
         <li>{t.overviewB3}</li>
+        <li>{t.overviewB4}</li>
       </ul>
     </section>
   );
@@ -449,6 +453,8 @@ function CheckPanel({
       <ul className="end tight">
         <li>{t.scenario}</li>
         <li>{t.limit}</li>
+        <li>{t.chargeNote}</li>
+        <li>{t.timingNote}</li>
       </ul>
       <form onSubmit={onSubmit}>
         <label>
@@ -513,6 +519,8 @@ function WhyPanel() {
         <li>{t.why2Body}</li>
         <li>{t.why2b}</li>
         <li>{t.whyMonadLine}</li>
+        <li>{t.chargeNote}</li>
+        <li>{t.timingNote}</li>
       </ul>
       <h2>{t.why3}</h2>
       <ul className="end tight">
@@ -586,6 +594,8 @@ function E2EPanel({ step }: { step: number }) {
           <li key={item}>{item}</li>
         ))}
         {step === 1 ? <li>{t.e2eSame}</li> : null}
+        <li>{t.chargeNote}</li>
+        <li>{t.timingNote}</li>
       </ul>
       <div className="actions">
         <button className="action" type="button" onClick={onRun} disabled={busy}>

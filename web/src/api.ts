@@ -130,6 +130,77 @@ export async function runStep(step: number): Promise<StepResponse> {
   };
 }
 
+export type ChainNode = {
+  nodeId: string;
+  role: string;
+  ready?: boolean;
+  height?: number | null;
+  reachable?: boolean;
+  found?: boolean;
+  headerHash: string | null;
+  bodyCommitment: string | null;
+  pruned?: boolean;
+  payloadPresent: boolean;
+  payload: string | null;
+  code: string;
+};
+
+export type ChainTopology = {
+  ok: boolean;
+  code?: string;
+  mechanism?: string;
+  consensus?: string;
+  bft?: boolean;
+  failureDomain?: string;
+  nodes?: Array<{ id: string; role: string | null; reachable: boolean; height: number | null; ready: boolean }>;
+};
+
+export type ChainOp = {
+  ok: boolean;
+  status?: string;
+  code?: string;
+  index?: number | null;
+  hash?: string | null;
+  bodyCommitment?: string | null;
+  replicas?: Array<{ id: string; ok: boolean; code: string }>;
+};
+
+export type ChainObserve = {
+  ok: boolean;
+  index?: number;
+  nodes?: ChainNode[];
+  code?: string;
+};
+
+export async function chainTopology(): Promise<ChainTopology> {
+  const res = await fetch("/v1/pchain/topology");
+  const body = (await readBody(res)) as ChainTopology;
+  return body;
+}
+
+export async function chainAppend(payload: string): Promise<ChainOp> {
+  const res = await fetch("/v1/pchain/append", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ payload }),
+  });
+  return (await readBody(res)) as ChainOp;
+}
+
+export async function chainPrune(index: number): Promise<ChainOp> {
+  const res = await fetch("/v1/pchain/prune", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ index }),
+  });
+  return (await readBody(res)) as ChainOp;
+}
+
+export async function chainObserve(index: number): Promise<ChainObserve> {
+  const res = await fetch(`/v1/pchain/observe/${index}`);
+  return (await readBody(res)) as ChainObserve;
+}
+
 export function formatPin(seconds: number): string {
   const date = new Date(seconds * 1000);
   if (Number.isNaN(date.getTime()) || seconds === 0) return "—";

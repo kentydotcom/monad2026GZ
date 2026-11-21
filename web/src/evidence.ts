@@ -1,5 +1,5 @@
 export const SAMPLE_NOTE =
-  "SYNTHETIC retention note. Not a real person. Fictional post: Archive clerk. Candidate: Example Q. Sample. Staff id: EX-0000.";
+  "SYNTHETIC retention note. Not a real person. Fictional role: archive clerk. Candidate: Example Q. Sample. Staff id: EX-0000.";
 
 export type SideKind = "unknown" | "match" | "gone" | "mismatch" | "error";
 

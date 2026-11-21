@@ -37,6 +37,12 @@ test("the password gate locks the tour and leaves health open", async () => {
       headers: { authorization: `Basic ${Buffer.from(`kent:${password}`).toString("base64")}` },
     });
     assert.equal(open.status, 200);
+    const chainLocked = await fetch(`${base}/v1/pchain/topology`);
+    assert.equal(chainLocked.status, 401);
+    const chainOff = await fetch(`${base}/v1/pchain/topology`, {
+      headers: { authorization: `Basic ${Buffer.from(`kent:${password}`).toString("base64")}` },
+    });
+    assert.equal(chainOff.status, 503);
   } finally {
     await server.close();
   }

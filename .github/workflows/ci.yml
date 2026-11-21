@@ -25,6 +25,8 @@ jobs:
         run: |
           npm ci --prefix web
           npm run build --prefix web
+      - name: Private chain
+        run: ./scripts/pchain-e2e.sh --ci
       - name: Local end-to-end
         run: ./scripts/e2e.sh --local
       - name: Testnet end-to-end wiring

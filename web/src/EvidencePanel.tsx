@@ -21,13 +21,15 @@ export function EvidencePanel({ evidence }: { evidence: Evidence }) {
         <Field k={t.fee} v={mon === null ? t.notMeasured : `${mon} MON`} />
         <Field k={t.roundTrip} v={evidence.roundTripMs === null ? t.notMeasured : `${evidence.roundTripMs} ms`} />
       </dl>
-      <p className="meta">{t.chargeNote}</p>
-      {evidence.gasUsed && evidence.gasLimit && evidence.gasUsed !== evidence.gasLimit ? (
-        <p className="meta">
-          {t.gasUsed} {evidence.gasUsed}
-        </p>
-      ) : null}
-      <p className="meta">{t.timingNote}</p>
+      <ul className="end tight">
+        <li>{t.chargeNote}</li>
+        {evidence.gasUsed && evidence.gasLimit && evidence.gasUsed !== evidence.gasLimit ? (
+          <li>
+            {t.gasUsed} {evidence.gasUsed}
+          </li>
+        ) : null}
+        <li>{t.timingNote}</li>
+      </ul>
       {explorer ? (
         <div className="links">
           <a href={explorer} target="_blank" rel="noreferrer">

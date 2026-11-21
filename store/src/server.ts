@@ -19,6 +19,13 @@ const TYPES: Record<string, string> = {
   ".ico": "image/x-icon",
 };
 
+export type PrivateChain = {
+  topology(): Promise<Record<string, unknown>>;
+  append(payload: string): Promise<Record<string, unknown>>;
+  prune(index: number): Promise<Record<string, unknown>>;
+  observe(index: number): Promise<Record<string, unknown>>;
+};
+
 export function startServer(options: {
   service: Service;
   host: string;
@@ -26,6 +33,7 @@ export function startServer(options: {
   staticDir: string | null;
   localAdmin: boolean;
   gatePassword?: string | null;
+  privateChain?: PrivateChain | null;
 }): Promise<{ port: number; close: () => Promise<void> }> {
   const { service } = options;
   const gatePassword = options.gatePassword?.trim() ?? "";
@@ -44,7 +52,7 @@ export function startServer(options: {
         return;
       }
       if (url.pathname.startsWith("/v1/")) {
-        await routeApi(req, res, url, service, options.localAdmin);
+        await routeApi(req, res, url, service, options.localAdmin, options.privateChain ?? null);
         return;
       }
       if (options.staticDir && req.method === "GET") {
@@ -86,6 +94,7 @@ async function routeApi(
   url: URL,
   service: Service,
   localAdmin: boolean,
+  privateChain: PrivateChain | null,
 ): Promise<void> {
   if (req.method === "GET" && url.pathname === "/v1/health") {
     sendJson(res, 200, {
@@ -204,6 +213,11 @@ async function routeApi(
     return;
   }
 
+  if (url.pathname.startsWith("/v1/pchain/")) {
+    await routePrivateChain(req, res, url, privateChain);
+    return;
+  }
+
   if (req.method === "GET" && url.pathname === "/v1/e2e/state") {
     sendJson(res, 200, { ok: true, ...service.e2e });
     return;
@@ -214,6 +228,44 @@ async function routeApi(
   }
 
   sendJson(res, 404, { ok: false, error: "Not found." });
+}
+
+async function routePrivateChain(
+  req: IncomingMessage,
+  res: ServerResponse,
+  url: URL,
+  privateChain: PrivateChain | null,
+): Promise<void> {
+  if (!privateChain) {
+    sendJson(res, 503, { ok: false, code: "not-running" });
+    return;
+  }
+  if (req.method === "GET" && url.pathname === "/v1/pchain/topology") {
+    sendJson(res, 200, await privateChain.topology());
+    return;
+  }
+  if (req.method === "POST" && url.pathname === "/v1/pchain/append") {
+    const body = await readJson(req);
+    const payload = body && typeof body === "object" ? (body as { payload?: unknown }).payload : undefined;
+    if (typeof payload !== "string") throw new HttpError(400, "Payload must be a string.");
+    const result = await privateChain.append(payload);
+    sendJson(res, result.ok === true ? 201 : 409, result);
+    return;
+  }
+  if (req.method === "POST" && url.pathname === "/v1/pchain/prune") {
+    const body = await readJson(req);
+    const index = body && typeof body === "object" ? (body as { index?: unknown }).index : undefined;
+    if (typeof index !== "number" || !Number.isInteger(index)) throw new HttpError(400, "Block index must be an integer.");
+    const result = await privateChain.prune(index);
+    sendJson(res, result.ok === true ? 200 : 409, result);
+    return;
+  }
+  const observe = url.pathname.match(/^\/v1\/pchain\/observe\/(\d+)$/);
+  if (req.method === "GET" && observe?.[1]) {
+    sendJson(res, 200, await privateChain.observe(Number(observe[1])));
+    return;
+  }
+  sendJson(res, 404, { ok: false, code: "missing" });
 }
 
 async function readJson(req: IncomingMessage): Promise<unknown> {
