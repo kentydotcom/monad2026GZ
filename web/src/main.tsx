@@ -5,13 +5,16 @@ import "@fontsource/cormorant-garamond/700.css";
 import "@fontsource/source-serif-4/500.css";
 import "@fontsource/source-serif-4/600.css";
 import { App } from "./App";
+import { LanguageProvider } from "./lang";
 import "./styles.css";
 
 const root = document.getElementById("root");
 if (!root) throw new Error("Missing root");
 createRoot(root).render(
   <StrictMode>
-    <App />
+    <LanguageProvider>
+      <App />
+    </LanguageProvider>
   </StrictMode>,
 );
 

@@ -17,6 +17,11 @@
     <link rel="apple-touch-icon" href="/icons/icon-192.png" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <title>WYRVEL</title>
+    <script>
+      try {
+        if (localStorage.getItem("wyrvel.lang") === "zh") document.documentElement.lang = "zh-Hans";
+      } catch (e) {}
+    </script>
   </head>
   <body>
     <div id="root"></div>

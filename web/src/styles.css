@@ -11,8 +11,8 @@
   --section: 1.5rem;
   --body: 1.125rem;
   --meta: 0.875rem;
-  --display: "Cormorant Garamond", "Palatino Linotype", Palatino, serif;
-  --serif: "Source Serif 4", "Palatino Linotype", Palatino, serif;
+  --display: "Cormorant Garamond", "Noto Serif SC", "Songti SC", "PMingLiU", "WenQuanYi Micro Hei", "Droid Sans Fallback", Palatino, serif;
+  --serif: "Source Serif 4", "Noto Serif SC", "Songti SC", "PMingLiU", "WenQuanYi Micro Hei", "Droid Sans Fallback", Palatino, serif;
   color-scheme: dark;
 }
 
@@ -83,6 +83,14 @@ a:hover { color: var(--ink); }
   text-transform: uppercase;
 }
 
+html[lang="zh-Hans"] .tabs button,
+html[lang="zh-Hans"] .steps button,
+html[lang="zh-Hans"] .kicker,
+html[lang="zh-Hans"] h2 {
+  letter-spacing: 0.02em;
+  text-transform: none;
+}
+
 .app { min-height: 100%; }
 
 .top {
@@ -107,10 +115,40 @@ a:hover { color: var(--ink); }
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 1rem;
+  flex-wrap: wrap;
+  gap: 0.6rem 1rem;
   min-height: 3.5rem;
   padding-top: 0.4rem;
   padding-bottom: 0.2rem;
+}
+
+.brand-tools {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  margin-left: auto;
+}
+
+.lang-switch {
+  display: flex;
+  border: 1px solid var(--line);
+}
+
+.lang-switch button {
+  min-height: 36px;
+  min-width: 2.75rem;
+  padding: 0.2rem 0.5rem;
+  background: transparent;
+  border: 0;
+  letter-spacing: 0.04em;
+  text-transform: none;
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+
+.lang-switch button[aria-pressed="true"] {
+  background: #d7b56a;
+  color: #1a120c;
 }
 
 .brand-name {

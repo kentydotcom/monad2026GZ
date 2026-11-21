@@ -19,7 +19,7 @@ npm install --prefix web
 ./scripts/dev.sh
 ```
 
-`./scripts/dev.sh` starts Anvil with Monad execution, deploys the seal, starts the store, and opens the Judge Tour at <http://127.0.0.1:5173>.
+`./scripts/dev.sh` starts Anvil with Monad execution, deploys the seal, starts the store, and opens the Judge Tour at <http://127.0.0.1:5173>. EN / 中文 switches the tour copy and is remembered in the browser. Hashes, record ids, and the name WYRVEL stay as they are.
 
 Phone and desktop screenshots of every tab are in `screenshots/`.
 

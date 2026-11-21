@@ -62,7 +62,7 @@ export function IconChain({ size = 18 }: IconProps) {
   );
 }
 
-export function SealFigure() {
+export function SealFigure({ seal, data, label }: { seal: string; data: string; label: string }) {
   const cells = [];
   for (let row = 0; row < 4; row += 1) {
     for (let col = 0; col < 8; col += 1) {
@@ -81,7 +81,7 @@ export function SealFigure() {
     }
   }
   return (
-    <svg className="figure" viewBox="0 0 360 110" role="img" aria-label="Seal leading to data">
+    <svg className="figure" viewBox="0 0 360 110" role="img" aria-label={label}>
       <circle cx="36" cy="48" r="28" fill="none" stroke="#c6a36e" strokeWidth="1.25" />
       <circle cx="36" cy="48" r="23" fill="#241910" stroke="#8d6a3d" strokeWidth="1" />
       <g fill="#f3ecdf">
@@ -91,7 +91,7 @@ export function SealFigure() {
         <rect x="22" y="51.6" width="28" height="2.4" />
       </g>
       <text x="78" y="52" fill="#e0c48a" fontSize="14" fontFamily="Source Serif 4, Palatino, serif">
-        SEAL
+        {seal}
       </text>
       <line
         x1="118"
@@ -104,7 +104,7 @@ export function SealFigure() {
       />
       {cells}
       <text x="188" y="100" fill="#e0c48a" fontSize="14" fontFamily="Source Serif 4, Palatino, serif">
-        DATA
+        {data}
       </text>
     </svg>
   );

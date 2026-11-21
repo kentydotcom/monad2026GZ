@@ -1,0 +1,469 @@
+export const LANGS = ["en", "zh"] as const;
+export type Lang = (typeof LANGS)[number];
+export const LANG_STORAGE_KEY = "wyrvel.lang";
+
+const en = {
+  langLabel: "Language",
+  langEn: "EN",
+  langZh: "中文",
+  tourLabel: "Judge tour",
+  stepsLabel: "End-to-end steps",
+  tabOverview: "Overview",
+  tabCommit: "Commit",
+  tabErase: "Erase",
+  tabCheck: "Check",
+  tabWhy: "Why Monad",
+  tabE2e: "E2E",
+  step1: "1 Deploy",
+  step2: "2 Commit",
+  step3: "3 Match",
+  step4: "4 Erase",
+  step5: "5 Recover",
+  step6: "6 Seal",
+  connecting: "Connecting",
+  chainUnreachable: "Chain unreachable",
+  chainMonad: "Monad testnet",
+  chainLocal: "Local chain",
+  chainDown: "Unreachable",
+  lede: "Pin a hash. Keep the data private. Erase it. Check that it is gone.",
+  kCommit: "Commit",
+  kErase: "Erase",
+  kCheck: "Check",
+  overviewCommitTitle: "Only a 32-byte hash is pinned on Monad.",
+  overviewCommitBody: "The payload stays in WYRVEL.",
+  overviewEraseTitle: "The private copy is removed. The on-chain seal does not change.",
+  overviewCheckTitle: "A second party still sees the seal, and cannot recover the payload.",
+  figureLabel: "Seal leading to data",
+  figureSeal: "SEAL",
+  figureData: "DATA",
+  overviewB1: "Commit stores the payload privately and pins keccak256 on Monad.",
+  overviewB2: "Erase removes that private copy and leaves the seal untouched.",
+  overviewB3: "Check reads the seal and tries to recover the payload.",
+  byline: "Kent G Lau, PhD",
+  workingName: "Temporary working name.",
+  operatorCommit: "Operator · Commit",
+  commitBody:
+    "The payload stays in WYRVEL. keccak256 of the UTF-8 bytes is pinned under a new record id. The transaction does not carry the payload.",
+  payload: "Payload",
+  payloadPlaceholder: "A sentence the team can erase.",
+  payloadRequired: "Enter a payload.",
+  recordRequired: "Enter a record id.",
+  committing: "Committing",
+  commit: "Commit",
+  commitFailed: "Commit failed.",
+  fieldTx: "Transaction",
+  fieldRecord: "Record",
+  fieldKeccak: "keccak256",
+  fieldPinned: "Pinned",
+  fieldPinner: "Pinner",
+  openVision: "Open the seal on MonadVision",
+  openScan: "Open the seal on Monadscan",
+  noExplorer: "This chain is not Monad testnet, so there is no public explorer link.",
+  commitB1: "The payload stays in the store the team controls.",
+  commitB2: "Monad records the hash, the timestamp, and the record id.",
+  commitB3: "A testnet transaction links to the official explorer.",
+  operatorErase: "Operator · Erase",
+  eraseBody:
+    "Erase removes the team copy WYRVEL holds for this record id. It does not send a Monad transaction, and it does not alter the seal.",
+  recordId: "Record id",
+  erasing: "Erasing",
+  erase: "Erase",
+  eraseFailed: "Erase failed.",
+  fieldCopy: "Private copy",
+  unrecoverable: "Unrecoverable",
+  fieldErased: "Erased",
+  eraseB1: "The stored payload is no longer returned.",
+  eraseB2: "The Monad seal is left as it was.",
+  eraseB3: "Check is the separate view that reads both.",
+  checker: "Checker",
+  checkBody:
+    "This view reads the on-chain seal, then asks WYRVEL for the payload. Before erase, the payload comes back and keccak256 matches the seal. After erase, the seal is unchanged and the payload does not come back.",
+  checking: "Checking",
+  check: "Check",
+  checkFailed: "Check failed.",
+  fieldPayload: "Payload",
+  recovered: "Recovered from WYRVEL",
+  fieldText: "Text",
+  fieldMatch: "Match",
+  matchYes: "keccak256 matches the seal",
+  matchNo: "keccak256 does not match the seal",
+  matchNone: "No payload to compare",
+  fieldSeal: "Seal",
+  notPinned: "Not pinned",
+  checkB1: "The seal is read from Monad, not from the store’s memory of it.",
+  checkB2: "Recovery either returns the payload or it does not.",
+  checkB3: "After erase, the contrast is the seal still there and the payload gone from the team store.",
+  whyKicker: "Why Monad",
+  why1: "Sub-second L1 finality.",
+  why1Body:
+    "Commit pins a 32-byte hash. Check only works if a second party can treat that seal as already final. Official MonadBFT figures are 300 ms blocks, with a September 2026 mainnet mean of 302 ms, speculative finality in one slot, and full finality in two slots, about 600 ms. Once a block is finalized, official docs say it cannot be reorged.",
+  why2: "Cheap capacity for many small pins.",
+  why2Body:
+    "The public adapter is a high volume of tiny writes: a 32-byte commitment, an event, and an immutable record. At the official minimum base fee of 100 MON-gwei and no priority fee, a typical 200,000-gas call costs 0.02 MON. Design capacity is 10,000+ transactions per second, with a 150M gas block budget. Saturday’s demo uses testnet MON. The case is Monad as the settlement layer for many small pins.",
+  why3: "A seal a second party can check.",
+  why3Body:
+    "Check is the contrast: the seal is still on chain, and the payload is gone from the team store. A checker can read the transaction on the official testnet explorers. Saturday uses chain id 10143, MonadVision, and Monadscan.",
+  linkWhy: "Why Monad",
+  linkBft: "MonadBFT",
+  linkGas: "Gas pricing",
+  linkHistory: "Historical data",
+  whyB1: "300 ms blocks, full finality in two slots.",
+  whyB2: "Room for many 32-byte pins.",
+  whyB3: "Official explorers a checker can open.",
+  e2eKicker: "E2E · Step {step} of 6",
+  e2eSame: "Same steps as scripts/e2e.sh.",
+  running: "Running",
+  runStep: "Run this step",
+  stepDidNotRun: "The step did not run.",
+  storeSilent: "The store did not answer.",
+  s1title: "Deploy or locate the seal contract.",
+  s1body:
+    "This step reads the configured RPC and the chain id. If a seal address is already set, it checks that the address holds contract code and uses that seal. If no address is set, it deploys WyrvelSeal and keeps the new address for the later steps. Success is an address with code on the chain that answered. If the RPC does not answer, the step stops and shows that error.",
+  s1a: "The chain id is the chain that answered.",
+  s1b: "The seal address has bytecode.",
+  s1c: "A failed RPC is shown and not replaced with a fake result.",
+  s2title: "Commit a payload and pin its hash.",
+  s2body:
+    "A short UTF-8 sentence is written into the WYRVEL store under a new record id. The store hashes those bytes with keccak256 and sends a transaction that pins the 32-byte hash on the seal. The payload is not in the transaction. Success is a record id, the hash, a pin timestamp, and a mined transaction hash. On Monad testnet the hash is linked to the public explorer. On a local chain the transaction is real for that node, and no public explorer link is invented.",
+  s2a: "The store holds the payload under the record id.",
+  s2b: "The transaction hash is mined on this chain.",
+  s2c: "Monad testnet links to MonadVision. Other chains do not.",
+  s3title: "Verify the payload matches the seal.",
+  s3body:
+    "The checker reads the payload back from the store and reads the seal with a separate chain call. keccak256 of the recovered bytes is compared with the on-chain commitment for the same record id. Success is an exact match. This is the view from before erase. If the copy is already gone, the step fails because there is nothing left to match.",
+  s3a: "The store returns the payload.",
+  s3b: "The chain returns a pinned seal for the record id.",
+  s3c: "The two hashes are equal.",
+  s4title: "Erase the private copy.",
+  s4body:
+    "The operator asks WYRVEL to erase the stored payload for the record id from step 2. The store removes that team copy. This step does not send a transaction and does not call the seal. Success is a store response that the payload is no longer held. The earlier transaction hash is left as it was.",
+  s4a: "The store accepts the erase.",
+  s4b: "No new seal transaction is required.",
+  s4c: "The previous transaction hash is unchanged.",
+  s5title: "Verify the payload is unrecoverable.",
+  s5body:
+    "The checker asks the store for the same record id, the way a second party would. Success is a failed recovery: the payload is not returned, and the store directory does not still contain that text.",
+  s5a: "A read does not return the payload.",
+  s5b: "The store directory does not contain the payload text.",
+  s5c: "The record id is the one from the commit.",
+  s6title: "Verify the on-chain seal is unchanged.",
+  s6body:
+    "The checker reads the seal for the same record id again. Success is the original 32-byte commitment, the same pinner, and the same pin timestamp as the commit in step 2. The payload stays unrecoverable from the team store. The seal was not edited.",
+  s6a: "Commitment, timestamp, and pinner match the commit.",
+  s6b: "The payload is still unrecoverable.",
+  s6c: "The pin transaction hash is the one from step 2.",
+  dash: "—",
+};
+
+const zh: { [K in keyof typeof en]: string } = {
+  langLabel: "语言",
+  langEn: "EN",
+  langZh: "中文",
+  tourLabel: "评审导览",
+  stepsLabel: "端到端步骤",
+  tabOverview: "概览",
+  tabCommit: "提交",
+  tabErase: "擦除",
+  tabCheck: "核对",
+  tabWhy: "为何 Monad",
+  tabE2e: "端到端",
+  step1: "1 部署",
+  step2: "2 提交",
+  step3: "3 对照",
+  step4: "4 擦除",
+  step5: "5 取回",
+  step6: "6 封存",
+  connecting: "连接中",
+  chainUnreachable: "链无法连接",
+  chainMonad: "Monad 测试网",
+  chainLocal: "本地链",
+  chainDown: "无法连接",
+  lede: "记下哈希。数据留在团队侧。擦除团队副本。核对是否还能取回。",
+  kCommit: "提交",
+  kErase: "擦除",
+  kCheck: "核对",
+  overviewCommitTitle: "链上只封存 32 字节哈希。",
+  overviewCommitBody: "数据留在 WYRVEL。",
+  overviewEraseTitle: "团队副本被擦除。链上封存哈希不变。",
+  overviewCheckTitle: "另一方仍看得到链上封存哈希，但无法取回数据。",
+  figureLabel: "链上封存通向数据",
+  figureSeal: "封存",
+  figureData: "数据",
+  overviewB1: "提交把数据留在团队存储里，并在 Monad 上封存 keccak256。",
+  overviewB2: "擦除去掉的是那份团队副本，链上封存哈希不动。",
+  overviewB3: "核对读取链上封存哈希，并尝试取回数据。",
+  byline: "Kent G Lau, PhD",
+  workingName: "暂用名称。",
+  operatorCommit: "操作者 · 提交",
+  commitBody: "数据留在 WYRVEL。UTF-8 字节的 keccak256 记在新的记录号下。交易里没有数据本身。",
+  payload: "数据",
+  payloadPlaceholder: "一句团队可以擦除的话。",
+  payloadRequired: "请填写数据。",
+  recordRequired: "请填写记录号。",
+  committing: "提交中",
+  commit: "提交",
+  commitFailed: "提交没有完成。",
+  fieldTx: "交易",
+  fieldRecord: "记录",
+  fieldKeccak: "keccak256",
+  fieldPinned: "封存时间",
+  fieldPinner: "封存账户",
+  openVision: "在 MonadVision 查看这笔交易",
+  openScan: "在 Monadscan 查看这笔交易",
+  noExplorer: "当前不是 Monad 测试网，所以不提供公开浏览器链接。",
+  commitB1: "数据留在团队控制的存储里。",
+  commitB2: "Monad 记下哈希、时间和记录号。",
+  commitB3: "测试网交易可以在官方浏览器里打开。",
+  operatorErase: "操作者 · 擦除",
+  eraseBody: "擦除的是 WYRVEL 为这个记录号保存的团队副本。这一步不发送 Monad 交易，也不改链上封存哈希。",
+  recordId: "记录号",
+  erasing: "擦除中",
+  erase: "擦除",
+  eraseFailed: "擦除没有完成。",
+  fieldCopy: "团队副本",
+  unrecoverable: "无法取回",
+  fieldErased: "已擦除",
+  eraseB1: "存储不再返回这份数据。",
+  eraseB2: "Monad 上的封存哈希保持原样。",
+  eraseB3: "核对是单独的一面，同时看链上封存和能否取回。",
+  checker: "核对者",
+  checkBody:
+    "这一面先读链上封存哈希，再向 WYRVEL 要数据。擦除之前，数据能够取回，并且 keccak256 与封存哈希一致。擦除之后，封存哈希不变，数据不再返回。",
+  checking: "核对中",
+  check: "核对",
+  checkFailed: "核对没有完成。",
+  fieldPayload: "数据",
+  recovered: "已从 WYRVEL 取回",
+  fieldText: "原文",
+  fieldMatch: "对照",
+  matchYes: "keccak256 与链上封存哈希一致",
+  matchNo: "keccak256 与链上封存哈希不一致",
+  matchNone: "没有数据可对照",
+  fieldSeal: "链上封存哈希",
+  notPinned: "尚未封存",
+  checkB1: "封存哈希读自 Monad，不是存储自己记住的那一份。",
+  checkB2: "要么取回数据，要么取不回。",
+  checkB3: "擦除之后看到的是：链上封存哈希还在，团队副本已经不在。",
+  whyKicker: "为何 Monad",
+  why1: "亚秒级一层终局。",
+  why1Body:
+    "提交封存的是 32 字节哈希。核对要成立，另一方得把这份链上封存哈希当成已经终局，而不是还在等重组。MonadBFT 的公开数字是 300 毫秒出一个块；2026 年 9 月主网均值是 302 毫秒。一个槽位给出推测终局，两个槽位给出完全终局，大约 600 毫秒。官方文档写明，块一旦终局就不能重组。",
+  why2: "小额封存的容量便宜。",
+  why2Body:
+    "公开适配器写的是大量很小的记录：32 字节承诺、一条事件、一条不可改的记录。按官方最低基础费 100 MON-gwei、不加优先费，一笔大约 20 万 gas 的调用是 0.02 MON。设计容量是每秒 1 万笔以上，块的 gas 上限是 1.5 亿。今天的演示用的是测试网 MON。要说明的是 Monad 适合作为大量小哈希的结算层。",
+  why3: "另一方可以自己核对的链上封存。",
+  why3Body:
+    "核对看到的对照是：链上封存哈希还在，数据已经不在团队存储里。核对者可以在官方测试网浏览器上读这笔交易。今天用的是链 ID 10143、MonadVision 和 Monadscan。",
+  linkWhy: "为何 Monad",
+  linkBft: "MonadBFT",
+  linkGas: "Gas 定价",
+  linkHistory: "历史数据",
+  whyB1: "300 毫秒出块，两个槽位完全终局。",
+  whyB2: "容得下许多 32 字节封存。",
+  whyB3: "官方浏览器，核对者自己能打开。",
+  e2eKicker: "端到端 · 第 {step} 步，共 6 步",
+  e2eSame: "与 scripts/e2e.sh 的步骤相同。",
+  running: "运行中",
+  runStep: "运行这一步",
+  stepDidNotRun: "这一步没有跑起来。",
+  storeSilent: "存储没有应答。",
+  s1title: "部署或定位封存合约。",
+  s1body:
+    "这一步读取配置的 RPC 和链 ID。如果已经有封存合约地址，就检查那里是否有合约代码，并用它。如果没有地址，就部署 WyrvelSeal，并把新地址留给后面的步骤。成功是：应答的那条链上，这个地址确有代码。RPC 没有应答时，步骤停下来并显示这个错误。",
+  s1a: "链 ID 来自实际应答的链。",
+  s1b: "封存合约地址上有字节码。",
+  s1c: "RPC 失败会显示出来，不会换成一个假结果。",
+  s2title: "提交数据并封存它的哈希。",
+  s2body:
+    "一句短的 UTF-8 文本写入 WYRVEL，记在新的记录号下。存储对这串字节做 keccak256，再发一笔交易，把这个 32 字节哈希封到链上。交易里没有数据本身。成功是：记录号、哈希、封存时间，以及已上链的交易哈希。在 Monad 测试网上，交易哈希连到公开浏览器。在本地链上，交易对那个节点是真的，但不会编造公开浏览器链接。",
+  s2a: "存储按记录号持有数据。",
+  s2b: "交易哈希已在这条链上确认。",
+  s2c: "Monad 测试网连到 MonadVision。其他链不连。",
+  s3title: "核对数据与链上封存哈希一致。",
+  s3body:
+    "核对者从存储取回数据，再用另一次链上调用读取封存哈希。取回字节的 keccak256 与同一记录号的链上承诺比较。成功是两者完全一致。这是擦除之前的画面。如果团队副本已经不在，这一步会失败，因为没有东西可对照。",
+  s3a: "存储返回了数据。",
+  s3b: "链上这个记录号有封存哈希。",
+  s3c: "两个哈希相等。",
+  s4title: "擦除团队副本。",
+  s4body:
+    "操作者请 WYRVEL 擦除第 2 步那个记录号下的数据。存储去掉这份团队副本。这一步不发交易，也不调用封存合约。成功是存储回答：数据已不再持有。先前的交易哈希保持原样。",
+  s4a: "存储接受了擦除。",
+  s4b: "不需要新的封存交易。",
+  s4c: "先前的交易哈希没有变。",
+  s5title: "核对数据已无法取回。",
+  s5body:
+    "核对者像另一方那样，再向存储要同一个记录号。成功是取回失败：数据没有返回，存储目录里也不再有这段文字。",
+  s5a: "读取没有返回数据。",
+  s5b: "存储目录里没有这段数据文字。",
+  s5c: "记录号就是提交时的那个。",
+  s6title: "核对链上封存哈希没有变。",
+  s6body:
+    "核对者再次读取同一记录号的链上封存。成功是：32 字节承诺、封存账户和封存时间都与第 2 步提交时相同。数据仍然无法从团队存储取回。链上封存没有被改过。",
+  s6a: "承诺、时间和封存账户与提交时一致。",
+  s6b: "数据仍然无法取回。",
+  s6c: "封存交易哈希仍是第 2 步的那一笔。",
+  dash: "—",
+};
+
+export type Copy = typeof en;
+export const copy: Record<Lang, Copy> = { en, zh };
+
+const KEEP_IDENTICAL: Array<keyof Copy> = ["langEn", "fieldKeccak", "byline", "dash", "linkBft"];
+
+export function htmlLang(lang: Lang): "en" | "zh-Hans" {
+  return lang === "zh" ? "zh-Hans" : "en";
+}
+
+export function readLang(storage: { getItem(key: string): string | null } | null): Lang {
+  const value = storage?.getItem(LANG_STORAGE_KEY);
+  return value === "zh" ? "zh" : "en";
+}
+
+export function writeLang(storage: { setItem(key: string, value: string): void }, lang: Lang): void {
+  storage.setItem(LANG_STORAGE_KEY, lang);
+}
+
+export type TourDraft = {
+  lang: Lang;
+  payload: string;
+  recordId: string;
+  txHash: string | null;
+  erasedAt: string | null;
+};
+
+/** Language is the only field that changes. Record, payload, and transaction stay. */
+export function withLang(draft: TourDraft, lang: Lang): TourDraft {
+  return { ...draft, lang };
+}
+
+export function chainLabel(name: string | null | undefined, lang: Lang, unreachable: boolean): string {
+  const t = copy[lang];
+  if (!name) return t.connecting;
+  if (unreachable || name === "Unreachable") return t.chainUnreachable;
+  if (name === "Monad testnet") return t.chainMonad;
+  if (name === "Local chain") return t.chainLocal;
+  return name;
+}
+
+const EXACT: Record<string, keyof Copy> = {
+  "Commit failed.": "commitFailed",
+  "Erase failed.": "eraseFailed",
+  "Check failed.": "checkFailed",
+  "The store did not answer.": "storeSilent",
+  "The step did not run.": "stepDidNotRun",
+  "Check did not return a record.": "checkFailed",
+};
+
+const LINE_RULES: Array<{ re: RegExp; zh: (match: RegExpMatchArray) => string }> = [
+  { re: /^RPC (.+)$/, zh: (m) => `RPC ${m[1]}` },
+  { re: /^Chain id (\d+)\.$/, zh: (m) => `链 ID ${m[1]}。` },
+  { re: /^Located seal (0x[0-9a-fA-F]{40})\.$/, zh: (m) => `已定位封存合约 ${m[1]}。` },
+  { re: /^Bytecode is present\. No new deploy transaction was sent\.$/, zh: () => "地址上有字节码。没有新发部署交易。" },
+  { re: /^WYRVEL_CONTRACT is unset\. Deploying WyrvelSeal\.$/, zh: () => "尚未设置 WYRVEL_CONTRACT。正在部署 WyrvelSeal。" },
+  { re: /^Deployed seal (0x[0-9a-fA-F]{40})\.$/, zh: (m) => `已部署封存合约 ${m[1]}。` },
+  { re: /^Deploy transaction (0x[0-9a-fA-F]{64})\.$/, zh: (m) => `部署交易 ${m[1]}。` },
+  { re: /^Explorer (https:\S+)$/, zh: (m) => `浏览器 ${m[1]}` },
+  { re: /^This chain is not Monad testnet, so no public explorer link is shown\.$/, zh: () => "当前不是 Monad 测试网，所以不显示公开浏览器链接。" },
+  { re: /^Record (0x[0-9a-fA-F]{64})\.$/, zh: (m) => `记录 ${m[1]}。` },
+  { re: /^keccak256 (0x[0-9a-fA-F]{64})\.$/, zh: (m) => `哈希 keccak256 ${m[1]}。` },
+  { re: /^Pinned at (\d+) by (0x[0-9a-fA-F]{40})\.$/, zh: (m) => `封存时间 ${m[1]}，封存账户 ${m[2]}。` },
+  { re: /^Transaction (0x[0-9a-fA-F]{64})\.$/, zh: (m) => `交易 ${m[1]}。` },
+  { re: /^No public explorer link\. The transaction hash is only for this chain\.$/, zh: () => "没有公开浏览器链接。这笔交易哈希只属于当前这条链。" },
+  { re: /^The payload was not placed in the transaction\.$/, zh: () => "数据没有放进交易。" },
+  { re: /^Recovered (\d+) bytes from the store\.$/, zh: (m) => `从存储取回 ${m[1]} 字节。` },
+  { re: /^Store keccak256 (0x[0-9a-fA-F]{64})\.$/, zh: (m) => `存储的 keccak256 ${m[1]}。` },
+  { re: /^Seal commitment (0x[0-9a-fA-F]{64})\.$/, zh: (m) => `链上封存哈希 ${m[1]}。` },
+  { re: /^The two hashes match\.$/, zh: () => "两个哈希一致。" },
+  { re: /^Erased record (0x[0-9a-fA-F]{64})\.$/, zh: (m) => `已擦除记录 ${m[1]} 的团队副本。` },
+  { re: /^The store no longer returns the payload\.$/, zh: () => "存储不再返回数据。" },
+  { re: /^No seal transaction was sent\.$/, zh: () => "没有发送封存交易。" },
+  { re: /^Earlier pin transaction remains (0x[0-9a-fA-F]{64})\.$/, zh: (m) => `先前的封存交易仍是 ${m[1]}。` },
+  { re: /^A read did not return the payload\.$/, zh: () => "读取没有返回数据。" },
+  { re: /^The store directory does not contain that payload\.$/, zh: () => "存储目录里没有这段数据。" },
+  { re: /^The private copy is unrecoverable from WYRVEL\.$/, zh: () => "无法从 WYRVEL 取回团队副本。" },
+  { re: /^Commitment, timestamp, and pinner match the commit\.$/, zh: () => "承诺、时间和封存账户与提交时一致。" },
+  { re: /^Pin transaction (0x[0-9a-fA-F]{64})\.$/, zh: (m) => `封存交易 ${m[1]}。` },
+  { re: /^The store still returned a payload\.$/, zh: () => "存储仍然返回了数据。" },
+  { re: /^The store did not return a payload\.$/, zh: () => "存储没有返回数据。" },
+  { re: /^No contract code at (0x[0-9a-fA-F]{40})\.$/, zh: (m) => `${m[1]} 上没有合约代码。` },
+  { re: /^Run step 1 first so a seal contract is located\.$/, zh: () => "请先运行第 1 步，定位封存合约。" },
+  { re: /^Run step 2 first\.$/, zh: () => "请先运行第 2 步。" },
+  { re: /^The payload is not recoverable, so it cannot be matched\. Run step 2 before erase\.$/, zh: () => "数据已无法取回，不能对照。请在擦除之前运行第 2 步。" },
+  { re: /^The seal is not pinned for this record id\.$/, zh: () => "这个记录号还没有链上封存哈希。" },
+  { re: /^The payload hash does not match the on-chain seal\.$/, zh: () => "数据的哈希与链上封存哈希不一致。" },
+  { re: /^The payload is still recoverable from the store\.$/, zh: () => "仍能从存储取回数据。" },
+  { re: /^The store directory still contains the payload\.$/, zh: () => "存储目录里仍有这段数据。" },
+  { re: /^The seal is missing\.$/, zh: () => "链上封存哈希不在。" },
+  { re: /^The on-chain commitment changed\.$/, zh: () => "链上承诺变了。" },
+  { re: /^The pin timestamp changed\.$/, zh: () => "封存时间变了。" },
+  { re: /^The pinner changed\.$/, zh: () => "封存账户变了。" },
+  { re: /^PRIVATE_KEY is not set\. WYRVEL will not invent a transaction\.$/, zh: () => "没有设置 PRIVATE_KEY。WYRVEL 不会编造一笔交易。" },
+  { re: /^WYRVEL_CONTRACT is not set\. Deploy the seal or run e2e step 1\.$/, zh: () => "没有设置 WYRVEL_CONTRACT。请先部署封存合约，或运行端到端第 1 步。" },
+  { re: /^Payload is required\.$/, zh: () => "需要填写数据。" },
+  { re: /^Payload must be a string\.$/, zh: () => "数据必须是文本。" },
+  { re: /^Payload is too large\.$/, zh: () => "数据太大。" },
+  { re: /^Record id must be a 32-byte hex value\.$/, zh: () => "记录号必须是 32 字节的十六进制值。" },
+  { re: /^No WYRVEL record for that id\.$/, zh: () => "WYRVEL 没有这个记录号。" },
+  { re: /^Erase failed\. The stored copy is still present\.$/, zh: () => "擦除没有完成。团队副本仍在。" },
+  { re: /^Monad RPC is unreachable\.$/, zh: () => "Monad RPC 无法连接。" },
+  { re: /^Monad RPC timed out\.$/, zh: () => "Monad RPC 超时。" },
+  { re: /^RPC_URL is not set\.$/, zh: () => "没有设置 RPC_URL。" },
+  { re: /^Gas estimate failed\. The transaction was not sent\.(.*)$/, zh: (m) => `Gas 估算失败。交易没有发出。${m[1] ?? ""}` },
+  { re: /^Pin transaction failed\.$/, zh: () => "封存交易没有成功。" },
+  { re: /^Deploy transaction failed\.$/, zh: () => "部署交易没有成功。" },
+  { re: /^Not found\.$/, zh: () => "没有找到。" },
+  { re: /^Request body is required\.$/, zh: () => "需要请求正文。" },
+  { re: /^Request body must be JSON\.$/, zh: () => "请求正文必须是 JSON。" },
+  { re: /^Request body is too large\.$/, zh: () => "请求正文太大。" },
+  { re: /^Step must be 1 through 6\.$/, zh: () => "步骤必须是 1 到 6。" },
+];
+
+export function translateLine(line: string, lang: Lang): string {
+  if (lang === "en") return line;
+  const exact = EXACT[line];
+  if (exact) return copy.zh[exact];
+  for (const rule of LINE_RULES) {
+    const match = line.match(rule.re);
+    if (match) return rule.zh(match);
+  }
+  if (/[\u4e00-\u9fff]/.test(line)) return line;
+  return `未能按原文显示：${line}`;
+}
+
+export function translateError(message: string, lang: Lang): string {
+  return translateLine(message, lang);
+}
+
+export function missingKeys(): string[] {
+  const enKeys = Object.keys(en);
+  const zhKeys = Object.keys(zh);
+  return enKeys.filter((key) => !zhKeys.includes(key));
+}
+
+export function emptyCopy(): string[] {
+  const gaps: string[] = [];
+  for (const lang of LANGS) {
+    for (const [key, value] of Object.entries(copy[lang])) {
+      if (value.trim().length === 0) gaps.push(`${lang}.${key}`);
+    }
+  }
+  return gaps;
+}
+
+export function preservedIdentical(): string[] {
+  return KEEP_IDENTICAL.filter((key) => copy.en[key] !== copy.zh[key]);
+}
+
+export const LOG_FIXTURES = [
+  "RPC http://127.0.0.1:8545",
+  "Chain id 31337.",
+  "Located seal 0x5fbdb2315678afecb367f032d93f642f64180aa3.",
+  "Bytecode is present. No new deploy transaction was sent.",
+  "Record 0xb474bb63286993890b4c4cb35a529755265d1a9e424fb9bc07aca444c23014c1.",
+  "keccak256 0x9ad8df5be47429ec39b5a45365097917a79429d4598b3690e16cdca568d2860f.",
+  "Transaction 0x851f726edb4eb2b234339a015d7da03ed9cf7079f50af8f6d8fba910223f6211.",
+  "The private copy is unrecoverable from WYRVEL.",
+  "No seal transaction was sent.",
+  "PRIVATE_KEY is not set. WYRVEL will not invent a transaction.",
+];
