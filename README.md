@@ -2,7 +2,7 @@
 
 Pin a hash. Keep the data private. Erase it. Check that it is gone.
 
-WYRVEL is a temporary working name for a Monad Blitz Guangzhou demo (21 Nov 2026). The payload stays in a store the team controls. Monad testnet (chain id 10143) receives only a 32-byte keccak256 pin under a record id. The seal contract stores that hash, a timestamp, and the pinner, emits `Committed`, and does not keep the payload. Erase removes the private copy. Check is a separate view: read the seal, then try to recover the payload.
+WYRVEL is a Monad Blitz Guangzhou demo (21 Nov 2026). The payload stays in a store the team controls. Monad testnet (chain id 10143) receives only a 32-byte keccak256 pin under a record id. The seal contract stores that hash, a timestamp, and the pinner, emits `Committed`, and does not keep the payload. Erase removes the private copy. Check is a separate view: read the seal, then try to recover the payload.
 
 The same keccak256 of the UTF-8 payload is used in the contract tests, the store, and the end-to-end script.
 
@@ -137,4 +137,4 @@ Measured on this build: the store process is about 50 MB proportional, and the t
 
 ## Note
 
-This is a hackathon prototype: a hash pin, a real private erase, and a second-party check. WYRVEL is a temporary working name, not a filed mark.
+This is a hackathon prototype: a hash pin, a real private erase, and a second-party check.

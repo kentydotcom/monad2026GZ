@@ -195,7 +195,6 @@ export function App() {
         </div>
         <footer className="foot">
           <p>{t.byline}</p>
-          <p>{t.workingName}</p>
         </footer>
       </main>
     </div>

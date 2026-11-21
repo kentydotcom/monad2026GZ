@@ -41,7 +41,6 @@ const en = {
   overviewB3: "Check reads the seal and tries to recover the payload.",
   overviewB4: "The Chain tab is a separate private-chain proof of concept. It does not change the Monad seal.",
   byline: "Kent G Lau, PhD",
-  workingName: "Temporary working name.",
   operatorCommit: "Operator · Commit",
   commitBody:
     "The payload stays in WYRVEL. keccak256 of the UTF-8 bytes is pinned under a new record id. The transaction does not carry the payload.",
@@ -337,7 +336,6 @@ const zh: { [K in keyof typeof en]: string } = {
   overviewB3: "核对读取链上封存哈希，并尝试取回数据。",
   overviewB4: "私有链一页是单独的概念验证。它不改 Monad 上的封存哈希。",
   byline: "Kent G Lau, PhD",
-  workingName: "暂用名称。",
   operatorCommit: "操作者 · 提交",
   commitBody: "数据留在 WYRVEL。UTF-8 字节的 keccak256 记在新的记录号下。交易里没有数据本身。",
   payload: "数据",
