@@ -171,6 +171,11 @@ export class Vault {
     return next;
   }
 
+  has(recordId: string): boolean {
+    if (!isRecordId(recordId)) return false;
+    return Boolean(this.index.records[recordId.toLowerCase()]);
+  }
+
   async directoryHolds(snippet: string): Promise<boolean> {
     if (!snippet) return false;
     const files = await walk(this.root);

@@ -77,6 +77,34 @@ Private chain
   Rollback: redeploy with WYRVEL_CHAIN unset or set to 0. Leave the volume.
   Do not run fly volumes destroy. Do not change the seal contract or the secrets.
   ./scripts/pchain-e2e.sh --ci runs the isolated checks and does not contact Monad.
+
+Private-chain Monad anchor
+  Existing WyrvelSeal.commit(recordId, commitment). ABI unchanged.
+  recordId = keccak256(utf8(
+    WYRVEL/private-record/v1
+    chain wyrvel-private
+    index <n>
+    kind data|prune
+    header <sha256 hex of the private header>
+  ))
+  commitment = keccak256(utf8(
+    WYRVEL/private-anchor/v1
+    chain wyrvel-private
+    index <n>
+    kind data|prune
+    header <sha256 hex>
+    target <index or ->
+    targetHeader <sha256 hex or ->
+  ))
+  Lines are joined with newline. Header hashes are lowercase.
+  Only those hashes are pinned. The payload is not.
+  A confirmed anchor is a seal read-back match after an execution receipt.
+  It is not finality and not proof the body is gone.
+  Startup reconciles pending receipts and does not send.
+  New append and prune try to anchor. If the send fails, the local prune stays
+  and the anchor is pending or failed.
+  Old blocks are anchored only from the Anchor block / Anchor audit buttons.
+  State file: /data/chain/anchors.json. Do not delete the volume.
 EOF
 (
   cd "$DEST"

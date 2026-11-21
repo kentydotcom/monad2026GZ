@@ -199,7 +199,23 @@ export class Chain {
     });
   }
 
-  async pin(recordId: string, commitment: string): Promise<PinReceipt> {
+  canSign(): boolean {
+    return Boolean(this.privateKey && this.contractAddress && this.provider && !this.chainError && this.chainId !== null);
+  }
+
+  async txState(txHash: string): Promise<"pending" | "mined" | "dropped"> {
+    const provider = this.requireProvider();
+    const receipt = await provider.getTransactionReceipt(txHash);
+    if (receipt) return receipt.status === 1 ? "mined" : "dropped";
+    const tx = await provider.getTransaction(txHash);
+    return tx ? "pending" : "dropped";
+  }
+
+  async pin(
+    recordId: string,
+    commitment: string,
+    onBroadcast?: (txHash: string) => Promise<void>,
+  ): Promise<PinReceipt> {
     if (!this.contractAddress) {
       throw new Error("WYRVEL_CONTRACT is not set. Deploy the seal or run e2e step 1.");
     }
@@ -214,6 +230,7 @@ export class Chain {
       let receiptWaitMs: number | null = null;
       try {
         const tx = await signer.sendTransaction({ to: this.contractAddress, data, from, nonce, gasLimit });
+        if (onBroadcast) await onBroadcast(tx.hash);
         const sentAt = Date.now();
         receipt = await tx.wait();
         receiptWaitMs = Date.now() - sentAt;

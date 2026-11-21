@@ -1,17 +1,20 @@
 import { useEffect, useState } from "react";
 import {
   chainAppend,
+  chainAnchors,
   chainAudit,
   chainObserve,
+  chainPinAnchor,
   chainPrune,
   chainTopology,
+  type AnchorView,
   type ChainAudit,
   type ChainNode,
   type ChainTopology,
 } from "./api";
 import { payloadBytes, payloadIssue, statusText, sharedValue, type StatusCode } from "./chainSession";
 import { ChainPicture } from "./diagrams";
-import { SAMPLE_NOTE } from "./evidence";
+import { SAMPLE_NOTE, feeMon } from "./evidence";
 import { useT } from "./lang";
 
 export function ChainPanel({ active }: { active: boolean }) {
@@ -23,6 +26,8 @@ export function ChainPanel({ active }: { active: boolean }) {
   const [heldBlock, setHeldBlock] = useState<number | null>(null);
   const [current, setCurrent] = useState<ChainNode[] | null>(null);
   const [audit, setAudit] = useState<ChainAudit | null>(null);
+  const [dataAnchor, setDataAnchor] = useState<AnchorView | null>(null);
+  const [auditAnchor, setAuditAnchor] = useState<AnchorView | null>(null);
   const [status, setStatus] = useState<StatusCode | null>(null);
   const [detail, setDetail] = useState<string | null>(null);
   const [elapsed, setElapsed] = useState<number | null>(null);
@@ -54,9 +59,11 @@ export function ChainPanel({ active }: { active: boolean }) {
   const ids = topology?.nodes?.map((node) => node.id) ?? uniqueIds(thenNodes, current);
 
   async function readBlock(index: number) {
-    const [view, record] = await Promise.all([chainObserve(index), chainAudit(index)]);
+    const [view, record, pins] = await Promise.all([chainObserve(index), chainAudit(index), chainAnchors(index)]);
     setCurrent(Array.isArray(view.nodes) ? view.nodes : []);
     setAudit(record);
+    setDataAnchor(pins.data);
+    setAuditAnchor(pins.audit);
     await loadTopology();
   }
 
@@ -77,6 +84,7 @@ export function ChainPanel({ active }: { active: boolean }) {
         setHeld(nodes);
         setCurrent(nodes);
         setAudit(await chainAudit(result.index));
+        if (result.anchor) setDataAnchor(result.anchor);
       }
       await loadTopology();
       setStatus(code);
@@ -110,7 +118,10 @@ export function ChainPanel({ active }: { active: boolean }) {
     try {
       const result = await chainPrune(selected);
       const code = result.status === "accepted" || result.status === "rejected" || result.status === "incomplete" ? result.status : "rejected";
-      if (code === "accepted" || code === "incomplete") await readBlock(selected);
+      if (code === "accepted" || code === "incomplete") {
+        await readBlock(selected);
+        if (result.anchor) setAuditAnchor(result.anchor);
+      }
       else await loadTopology();
       setStatus(code);
       setDetail(code === "accepted" ? null : result.code ?? null);
@@ -122,11 +133,29 @@ export function ChainPanel({ active }: { active: boolean }) {
     }
   }
 
+  async function pinKind(kind: "data" | "prune") {
+    if (selected === null) return;
+    setBusy("anchor");
+    try {
+      const view = await chainPinAnchor(selected, kind);
+      if (kind === "data") setDataAnchor(view);
+      else setAuditAnchor(view);
+    } catch {
+      const failed = { anchored: false, status: "failed" as const, code: "rpc", readback: "unread" as const };
+      if (kind === "data") setDataAnchor((prev) => (prev ? { ...prev, ...failed } : null));
+      else setAuditAnchor((prev) => (prev ? { ...prev, ...failed } : null));
+    } finally {
+      setBusy(null);
+    }
+  }
+
   function onClear() {
     setHeld(null);
     setHeldBlock(null);
     setCurrent(null);
     setAudit(null);
+    setDataAnchor(null);
+    setAuditAnchor(null);
     setStatus(null);
     setDetail(null);
     setElapsed(null);
@@ -179,6 +208,8 @@ export function ChainPanel({ active }: { active: boolean }) {
             setBlockText(event.target.value.replace(/[^\d]/g, ""));
             setCurrent(null);
             setAudit(null);
+            setDataAnchor(null);
+            setAuditAnchor(null);
           }}
         />
       </label>
@@ -191,6 +222,12 @@ export function ChainPanel({ active }: { active: boolean }) {
         </button>
         <button className="quiet" type="button" onClick={onPrune} disabled={!running || selected === null || busy !== null}>
           {busy === "prune" ? t.chainPruning : t.chainPrune}
+        </button>
+        <button className="quiet" type="button" onClick={() => void pinKind("data")} disabled={!running || selected === null || busy !== null}>
+          {t.anchorData}
+        </button>
+        <button className="quiet" type="button" onClick={() => void pinKind("prune")} disabled={!running || selected === null || busy !== null}>
+          {t.anchorAuditBtn}
         </button>
         <button className="quiet" type="button" onClick={onClear} disabled={busy !== null}>
           {t.chainClear}
@@ -225,6 +262,8 @@ export function ChainPanel({ active }: { active: boolean }) {
           <li>{t.chainHeld}</li>
         </ul>
       ) : null}
+      <AnchorStatus view={dataAnchor} />
+      <AnchorStatus view={auditAnchor} />
       {leader?.found && leader.index !== null ? (
         <p>
           {t.chainAuditIndex} {leader.index}
@@ -277,6 +316,38 @@ export function ChainPanel({ active }: { active: boolean }) {
         ) : null}
       </details>
     </section>
+  );
+}
+
+function AnchorStatus({ view }: { view: AnchorView | null }) {
+  const { t } = useT();
+  if (!view) return null;
+  const label =
+    view.anchored && view.readback === "match"
+      ? t.anchorMatch
+      : view.readback === "mismatch"
+        ? t.anchorMismatch
+        : view.status === "pending"
+          ? t.anchorPending
+          : view.status === "failed"
+            ? t.anchorFailed
+            : t.anchorNone;
+  const href = view.explorer;
+  return (
+    <p>
+      {view.kind === "prune" ? t.anchorAuditBtn : t.anchorData} · {label}
+      {view.txHash ? ` · ${view.txHash.slice(0, 10)}…` : ""}
+      {view.feeWei ? ` · ${feeMon(view.feeWei) ?? view.feeWei} MON` : ""}
+      {` · ${t.dNotFinal}`}
+      {href ? (
+        <>
+          {" "}
+          <a href={href} target="_blank" rel="noreferrer">
+            {t.openVision}
+          </a>
+        </>
+      ) : null}
+    </p>
   );
 }
 

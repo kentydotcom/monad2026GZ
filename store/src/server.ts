@@ -2,6 +2,7 @@ import { createReadStream } from "node:fs";
 import { stat } from "node:fs/promises";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { extname, join, normalize } from "node:path";
+import type { AnchorBook } from "./anchor.js";
 import { authorizeBasic } from "./gate.js";
 import { isAddress } from "./hash.js";
 import { Service } from "./service.js";
@@ -35,6 +36,7 @@ export function startServer(options: {
   localAdmin: boolean;
   gatePassword?: string | null;
   privateChain?: PrivateChain | null;
+  anchors?: AnchorBook | null;
 }): Promise<{ port: number; close: () => Promise<void> }> {
   const { service } = options;
   const gatePassword = options.gatePassword?.trim() ?? "";
@@ -53,7 +55,7 @@ export function startServer(options: {
         return;
       }
       if (url.pathname.startsWith("/v1/")) {
-        await routeApi(req, res, url, service, options.localAdmin, options.privateChain ?? null);
+        await routeApi(req, res, url, service, options.localAdmin, options.privateChain ?? null, options.anchors ?? null);
         return;
       }
       if (options.staticDir && req.method === "GET") {
@@ -96,6 +98,7 @@ async function routeApi(
   service: Service,
   localAdmin: boolean,
   privateChain: PrivateChain | null,
+  anchors: AnchorBook | null,
 ): Promise<void> {
   if (req.method === "GET" && url.pathname === "/v1/health") {
     sendJson(res, 200, {
@@ -215,7 +218,7 @@ async function routeApi(
   }
 
   if (url.pathname.startsWith("/v1/pchain/")) {
-    await routePrivateChain(req, res, url, privateChain);
+    await routePrivateChain(req, res, url, privateChain, anchors);
     return;
   }
 
@@ -236,6 +239,7 @@ async function routePrivateChain(
   res: ServerResponse,
   url: URL,
   privateChain: PrivateChain | null,
+  anchors: AnchorBook | null,
 ): Promise<void> {
   if (!privateChain) {
     sendJson(res, 503, { ok: false, code: "not-running" });
@@ -250,7 +254,8 @@ async function routePrivateChain(
     const payload = body && typeof body === "object" ? (body as { payload?: unknown }).payload : undefined;
     if (typeof payload !== "string") throw new HttpError(400, "Payload must be a string.");
     const result = await privateChain.append(payload);
-    sendJson(res, result.ok === true ? 201 : 409, result);
+    const anchor = await anchorData(anchors, result);
+    sendJson(res, result.ok === true ? 201 : 409, { ...result, anchor });
     return;
   }
   if (req.method === "POST" && url.pathname === "/v1/pchain/prune") {
@@ -258,7 +263,29 @@ async function routePrivateChain(
     const index = body && typeof body === "object" ? (body as { index?: unknown }).index : undefined;
     if (typeof index !== "number" || !Number.isInteger(index)) throw new HttpError(400, "Block index must be an integer.");
     const result = await privateChain.prune(index);
-    sendJson(res, result.ok === true ? 200 : 409, result);
+    const anchor = await anchorPrune(anchors, privateChain, index, result);
+    sendJson(res, result.ok === true ? 200 : 409, { ...result, anchor });
+    return;
+  }
+  const anchorGet = url.pathname.match(/^\/v1\/pchain\/anchors\/(\d+)$/);
+  if (req.method === "GET" && anchorGet?.[1]) {
+    if (!anchors) {
+      sendJson(res, 200, { ok: true, data: null, audit: null });
+      return;
+    }
+    sendJson(res, 200, { ok: true, ...(await anchors.refresh(Number(anchorGet[1]))) });
+    return;
+  }
+  const anchorPost = url.pathname.match(/^\/v1\/pchain\/anchors\/(\d+)$/);
+  if (req.method === "POST" && anchorPost?.[1]) {
+    if (!anchors) throw new HttpError(503, "Anchor book is not running.");
+    const body = await readJson(req);
+    const kind = body && typeof body === "object" ? (body as { kind?: unknown }).kind : undefined;
+    const index = Number(anchorPost[1]);
+    if (kind !== "data" && kind !== "prune") throw new HttpError(400, "Kind must be data or prune.");
+    const spec = await specFor(privateChain, index, kind);
+    const anchor = await anchors.ensure(spec);
+    sendJson(res, anchor.anchored ? 200 : 409, { ok: anchor.anchored, anchor });
     return;
   }
   const audit = url.pathname.match(/^\/v1\/pchain\/audit\/(\d+)$/);
@@ -272,6 +299,69 @@ async function routePrivateChain(
     return;
   }
   sendJson(res, 404, { ok: false, code: "missing" });
+}
+
+async function anchorData(anchors: AnchorBook | null, result: Record<string, unknown>): Promise<unknown> {
+  if (!anchors || result.ok !== true || typeof result.index !== "number" || typeof result.hash !== "string") return null;
+  try {
+    return await anchors.ensure({
+      index: result.index,
+      kind: "data",
+      headerHash: result.hash,
+      target: null,
+      targetHeader: null,
+    });
+  } catch {
+    return { anchored: false, status: "failed", code: "anchor-failed" };
+  }
+}
+
+async function anchorPrune(
+  anchors: AnchorBook | null,
+  privateChain: PrivateChain,
+  index: number,
+  result: Record<string, unknown>,
+): Promise<unknown> {
+  if (!anchors || (result.status !== "accepted" && result.status !== "incomplete")) return null;
+  try {
+    const report = (await privateChain.audit(index)) as {
+      leader?: { found?: boolean; authorized?: boolean; links?: boolean; hash?: string | null; index?: number | null; targetHeader?: string | null };
+    };
+    const leader = report.leader;
+    if (!leader?.found || !leader.authorized || !leader.links || !leader.hash || typeof leader.index !== "number") {
+      return { anchored: false, status: "failed", code: "no-audit" };
+    }
+    return await anchors.ensure({
+      index: leader.index,
+      kind: "prune",
+      headerHash: leader.hash,
+      target: index,
+      targetHeader: leader.targetHeader ?? null,
+    });
+  } catch {
+    return { anchored: false, status: "failed", code: "anchor-failed" };
+  }
+}
+
+async function specFor(privateChain: PrivateChain, index: number, kind: "data" | "prune") {
+  if (kind === "data") {
+    const observed = (await privateChain.observe(index)) as { nodes?: Array<{ nodeId?: string; headerHash?: string | null; code?: string }> };
+    const leader = observed.nodes?.find((node) => node.nodeId === "leader");
+    if (!leader?.headerHash) throw new HttpError(404, "That block has no header.");
+    return { index, kind, headerHash: leader.headerHash, target: null, targetHeader: null };
+  }
+  const report = (await privateChain.audit(index)) as {
+    leader?: { found?: boolean; authorized?: boolean; links?: boolean; hash?: string | null; index?: number | null; targetHeader?: string | null };
+  };
+  const leader = report.leader;
+  if (!leader?.found || !leader.hash || typeof leader.index !== "number") throw new HttpError(404, "That block has no prune audit.");
+  return {
+    index: leader.index,
+    kind,
+    headerHash: leader.hash,
+    target: index,
+    targetHeader: leader.targetHeader ?? null,
+  };
 }
 
 async function readJson(req: IncomingMessage): Promise<unknown> {

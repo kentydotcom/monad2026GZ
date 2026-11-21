@@ -155,6 +155,24 @@ export type ChainTopology = {
   nodes?: Array<{ id: string; role: string | null; reachable: boolean; height: number | null; ready: boolean }>;
 };
 
+export type AnchorView = {
+  anchored: boolean;
+  status: "pending" | "confirmed" | "failed";
+  code: string;
+  index: number;
+  kind: "data" | "prune";
+  recordId: string;
+  commitment: string;
+  headerHash: string;
+  txHash: string | null;
+  explorer: string | null;
+  monadscan: string | null;
+  readback: "match" | "mismatch" | "unread";
+  feeWei: string | null;
+  gasLimit: string | null;
+  effectiveGasPrice: string | null;
+};
+
 export type ChainOp = {
   ok: boolean;
   status?: string;
@@ -162,6 +180,7 @@ export type ChainOp = {
   index?: number | null;
   hash?: string | null;
   bodyCommitment?: string | null;
+  anchor?: AnchorView | null;
   replicas?: Array<{ id: string; ok: boolean; code: string }>;
 };
 
@@ -225,6 +244,22 @@ export type ChainAudit = {
   nodes?: ChainAuditNode[];
   code?: string;
 };
+
+export async function chainAnchors(index: number): Promise<{ data: AnchorView | null; audit: AnchorView | null }> {
+  const res = await fetch(`/v1/pchain/anchors/${index}`);
+  const body = (await readBody(res)) as { data?: AnchorView | null; audit?: AnchorView | null };
+  return { data: body.data ?? null, audit: body.audit ?? null };
+}
+
+export async function chainPinAnchor(index: number, kind: "data" | "prune"): Promise<AnchorView | null> {
+  const res = await fetch(`/v1/pchain/anchors/${index}`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ kind }),
+  });
+  const body = (await readBody(res)) as { anchor?: AnchorView };
+  return body.anchor ?? null;
+}
 
 export async function chainAudit(index: number): Promise<ChainAudit> {
   const res = await fetch(`/v1/pchain/audit/${index}`);

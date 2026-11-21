@@ -266,6 +266,14 @@ const en = {
   dCopy: "Copy",
   dReceipt: "Receipt",
   dMore: "Notes",
+  dAnchor: "Anchor",
+  anchorMatch: "Readback match",
+  anchorMismatch: "Readback mismatch",
+  anchorPending: "Anchor pending",
+  anchorFailed: "Anchor failed",
+  anchorNone: "Not anchored",
+  anchorData: "Anchor block",
+  anchorAuditBtn: "Anchor audit",
 };
 
 const zh: { [K in keyof typeof en]: string } = {
@@ -530,6 +538,14 @@ const zh: { [K in keyof typeof en]: string } = {
   dCopy: "副本",
   dReceipt: "回执",
   dMore: "附注",
+  dAnchor: "锚定",
+  anchorMatch: "回读一致",
+  anchorMismatch: "回读不一致",
+  anchorPending: "锚定待确认",
+  anchorFailed: "锚定失败",
+  anchorNone: "尚未锚定",
+  anchorData: "锚定区块",
+  anchorAuditBtn: "锚定审计",
 };
 
 export type Copy = typeof en;

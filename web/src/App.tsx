@@ -14,7 +14,7 @@ import {
   type StepResponse,
 } from "./api";
 import { ChainPanel } from "./ChainPanel";
-import { CheckSketch, CommitFlow, EraseFlow, OverviewMap, StepRail, WhySplit } from "./diagrams";
+import { AnchorLink, CheckSketch, CommitFlow, EraseFlow, OverviewMap, StepRail, WhySplit } from "./diagrams";
 import { EvidencePanel } from "./EvidencePanel";
 import { SAMPLE_NOTE, freshEvidence, noteCheck, noteCommit } from "./evidence";
 import { HashDisc, IconChain, IconCheck, IconErase, IconPin } from "./icons";
@@ -267,6 +267,7 @@ function CommitPanel({
       </p>
       <h2>{t.overviewCommitTitle}</h2>
       <CommitFlow />
+      <AnchorLink />
       {meta?.chainError ? <p className="notice">{translateError(meta.chainError, lang)}</p> : null}
       <form onSubmit={onSubmit}>
         <label>
@@ -359,6 +360,7 @@ function ErasePanel({
       </p>
       <h2>{t.overviewEraseTitle}</h2>
       <EraseFlow />
+      <AnchorLink />
       <form onSubmit={onSubmit}>
         <label>
           <span>{t.recordId}</span>
@@ -440,6 +442,7 @@ function CheckPanel({
       </p>
       <h2>{t.overviewCheckTitle}</h2>
       <CheckSketch />
+      <AnchorLink />
       <form onSubmit={onSubmit}>
         <label>
           <span>{t.recordId}</span>
@@ -493,6 +496,7 @@ function WhyPanel() {
         <IconChain /> {t.whyKicker}
       </p>
       <WhySplit />
+      <AnchorLink />
       <details className="chain-details">
         <summary>{t.dMore}</summary>
         <ul className="end tight">
@@ -565,6 +569,7 @@ function E2EPanel({ step }: { step: number }) {
       <p className="kicker">{t.e2eKicker.replace("{step}", String(step))}</p>
       <h2>{copy.title}</h2>
       <StepRail step={step} />
+      <AnchorLink />
       <div className="actions">
         <button className="action" type="button" onClick={onRun} disabled={busy}>
           {busy ? t.running : t.runStep}

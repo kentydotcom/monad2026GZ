@@ -1,4 +1,5 @@
-import { resolve } from "node:path";
+import { join, resolve } from "node:path";
+import { AnchorBook } from "./anchor.js";
 import { Chain } from "./chain.js";
 import { ChainError, startCluster } from "./privatechain.js";
 import { Service } from "./service.js";
@@ -29,6 +30,13 @@ const chain = new Chain(rpcUrl, privateKey, contract);
 await chain.loadArtifact();
 await chain.refresh();
 const service = new Service(vault, chain);
+const anchors = new AnchorBook(join(dataDir, "chain", "anchors.json"), chain, (id) => vault.has(id));
+await anchors.load();
+try {
+  await anchors.reconcile();
+} catch {
+  console.error(JSON.stringify({ anchor: "reconcile-failed" }));
+}
 
 let privateChain: Awaited<ReturnType<typeof startCluster>> | null = null;
 if (process.env.WYRVEL_CHAIN === "1") {
@@ -39,7 +47,7 @@ if (process.env.WYRVEL_CHAIN === "1") {
   }
 }
 
-const server = await startServer({ service, host, port, staticDir, localAdmin, gatePassword, privateChain });
+const server = await startServer({ service, host, port, staticDir, localAdmin, gatePassword, privateChain, anchors });
 console.log(
   JSON.stringify({
     listening: `${host}:${server.port}`,

@@ -50,6 +50,8 @@ export function OverviewMap() {
             <NodeBox name={t.dLeader} />
             <NodeBox name={t.dReplica} />
             <NodeBox name={t.dReplica} />
+            <Arrow />
+            <NodeBox name={t.dMonad} mark={t.dAnchor} />
           </div>
           <p className="bound">{t.dHost} · {t.dNotBft}</p>
         </div>
@@ -191,14 +193,32 @@ export function ChainPicture() {
           <div className="flow">
             <NodeBox name={t.dHeader} mark={t.dStays} />
             <NodeBox name={t.dAudit} mark={t.dStays} />
+            <Arrow />
+            <NodeBox name={t.dMonad} mark={t.dAnchor} />
           </div>
-          <p className="bound">{t.dNotBft} · {t.dNotBackup} · {t.dNotForensic}</p>
+          <p className="bound">{t.dNotBft} · {t.dNotBackup} · {t.dNotForensic} · {t.dNotFinal}</p>
         </div>
         <div className="lane">
           <p className="kicker">{t.dBrowser}</p>
           <NodeBox name={t.dCopy} mark={t.dSeparate} />
         </div>
       </div>
+    </Picture>
+  );
+}
+
+export function AnchorLink() {
+  const { t } = useT();
+  return (
+    <Picture label={t.dPicture}>
+      <div className="flow">
+        <NodeBox name={t.dLeader} />
+        <NodeBox name={t.dReplica} />
+        <NodeBox name={t.dReplica} />
+        <Arrow />
+        <NodeBox name={t.dMonad} mark={t.dAnchor} />
+      </div>
+      <p className="bound">{t.dHashOnly} · {t.dNotFinal}</p>
     </Picture>
   );
 }
