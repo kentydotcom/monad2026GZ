@@ -14,9 +14,10 @@ import {
   type StepResponse,
 } from "./api";
 import { ChainPanel } from "./ChainPanel";
+import { CheckSketch, CommitFlow, EraseFlow, OverviewMap, StepRail, WhySplit } from "./diagrams";
 import { EvidencePanel } from "./EvidencePanel";
 import { SAMPLE_NOTE, freshEvidence, noteCheck, noteCommit } from "./evidence";
-import { HashDisc, IconChain, IconCheck, IconErase, IconPin, SealFigure } from "./icons";
+import { HashDisc, IconChain, IconCheck, IconErase, IconPin } from "./icons";
 import { chainLabel, translateError, translateLine } from "./i18n";
 import { useT } from "./lang";
 
@@ -210,36 +211,16 @@ function Overview() {
         <h1>WYRVEL</h1>
         <h2 className="lede">{t.lede}</h2>
       </div>
-      <hr className="rule" />
-      <div className="triad">
-        <article>
-          <p className="kicker">
-            <IconPin /> {t.kCommit}
-          </p>
-          <h2>{t.overviewCommitTitle}</h2>
-          <p>{t.overviewCommitBody}</p>
-        </article>
-        <article>
-          <p className="kicker">
-            <IconErase /> {t.kErase}
-          </p>
-          <h2>{t.overviewEraseTitle}</h2>
-        </article>
-        <article>
-          <p className="kicker">
-            <IconCheck /> {t.kCheck}
-          </p>
-          <h2>{t.overviewCheckTitle}</h2>
-        </article>
-      </div>
-      <hr className="rule" />
-      <SealFigure seal={t.figureSeal} data={t.figureData} label={t.figureLabel} />
-      <ul className="end">
-        <li>{t.overviewB1}</li>
-        <li>{t.overviewB2}</li>
-        <li>{t.overviewB3}</li>
-        <li>{t.overviewB4}</li>
-      </ul>
+      <OverviewMap />
+      <details className="chain-details">
+        <summary>{t.dMore}</summary>
+        <ul className="end tight">
+          <li>{t.overviewB1}</li>
+          <li>{t.overviewB2}</li>
+          <li>{t.overviewB3}</li>
+          <li>{t.overviewB4}</li>
+        </ul>
+      </details>
     </section>
   );
 }
@@ -285,7 +266,7 @@ function CommitPanel({
         <IconPin /> {t.operatorCommit}
       </p>
       <h2>{t.overviewCommitTitle}</h2>
-      <p>{t.commitBody}</p>
+      <CommitFlow />
       {meta?.chainError ? <p className="notice">{translateError(meta.chainError, lang)}</p> : null}
       <form onSubmit={onSubmit}>
         <label>
@@ -332,11 +313,14 @@ function CommitPanel({
       ) : result ? (
         <p>{t.noExplorer}</p>
       ) : null}
-      <ul className="end">
-        <li>{t.commitB1}</li>
-        <li>{t.commitB2}</li>
-        <li>{t.commitB3}</li>
-      </ul>
+      <details className="chain-details">
+        <summary>{t.dMore}</summary>
+        <ul className="end tight">
+          <li>{t.commitB1}</li>
+          <li>{t.commitB2}</li>
+          <li>{t.commitB3}</li>
+        </ul>
+      </details>
     </section>
   );
 }
@@ -374,7 +358,7 @@ function ErasePanel({
         <IconErase /> {t.operatorErase}
       </p>
       <h2>{t.overviewEraseTitle}</h2>
-      <p>{t.eraseBody}</p>
+      <EraseFlow />
       <form onSubmit={onSubmit}>
         <label>
           <span>{t.recordId}</span>
@@ -404,11 +388,14 @@ function ErasePanel({
           <Field k={t.fieldErased} v={erasedAt.replace(".000Z", "Z")} />
         </dl>
       ) : null}
-      <ul className="end">
-        <li>{t.eraseB1}</li>
-        <li>{t.eraseB2}</li>
-        <li>{t.eraseB3}</li>
-      </ul>
+      <details className="chain-details">
+        <summary>{t.dMore}</summary>
+        <ul className="end tight">
+          <li>{t.eraseB1}</li>
+          <li>{t.eraseB2}</li>
+          <li>{t.eraseB3}</li>
+        </ul>
+      </details>
     </section>
   );
 }
@@ -452,12 +439,7 @@ function CheckPanel({
         <IconCheck /> {t.checker}
       </p>
       <h2>{t.overviewCheckTitle}</h2>
-      <ul className="end tight">
-        <li>{t.scenario}</li>
-        <li>{t.limit}</li>
-        <li>{t.chargeNote}</li>
-        <li>{t.timingNote}</li>
-      </ul>
+      <CheckSketch />
       <form onSubmit={onSubmit}>
         <label>
           <span>{t.recordId}</span>
@@ -510,25 +492,17 @@ function WhyPanel() {
       <p className="kicker">
         <IconChain /> {t.whyKicker}
       </p>
-      <h2>{t.why1}</h2>
-      <ul className="end tight">
-        <li>{t.why1Body}</li>
-        <li>{t.why1b}</li>
-        <li>{t.why1c}</li>
-      </ul>
-      <h2>{t.why2}</h2>
-      <ul className="end tight">
-        <li>{t.why2Body}</li>
-        <li>{t.why2b}</li>
-        <li>{t.whyMonadLine}</li>
-        <li>{t.chargeNote}</li>
-        <li>{t.timingNote}</li>
-      </ul>
-      <h2>{t.why3}</h2>
-      <ul className="end tight">
-        <li>{t.why3Body}</li>
-        <li>{t.why3b}</li>
-      </ul>
+      <WhySplit />
+      <details className="chain-details">
+        <summary>{t.dMore}</summary>
+        <ul className="end tight">
+          <li>{t.why1Body}</li>
+          <li>{t.why1b}</li>
+          <li>{t.chargeNote}</li>
+          <li>{t.timingNote}</li>
+          <li>{t.why3b}</li>
+        </ul>
+      </details>
       <div className="links">
         <a href="https://docs.monad.xyz/introduction/why-monad" target="_blank" rel="noreferrer">
           {t.linkWhy}
@@ -590,15 +564,7 @@ function E2EPanel({ step }: { step: number }) {
     <section className="panel">
       <p className="kicker">{t.e2eKicker.replace("{step}", String(step))}</p>
       <h2>{copy.title}</h2>
-      <ul className="end tight">
-        <li>{copy.body}</li>
-        {copy.success.map((item) => (
-          <li key={item}>{item}</li>
-        ))}
-        {step === 1 ? <li>{t.e2eSame}</li> : null}
-        <li>{t.chargeNote}</li>
-        <li>{t.timingNote}</li>
-      </ul>
+      <StepRail step={step} />
       <div className="actions">
         <button className="action" type="button" onClick={onRun} disabled={busy}>
           {busy ? t.running : t.runStep}

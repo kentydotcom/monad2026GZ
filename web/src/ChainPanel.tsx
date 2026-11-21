@@ -10,6 +10,7 @@ import {
   type ChainTopology,
 } from "./api";
 import { payloadBytes, payloadIssue, statusText, sharedValue, type StatusCode } from "./chainSession";
+import { ChainPicture } from "./diagrams";
 import { SAMPLE_NOTE } from "./evidence";
 import { useT } from "./lang";
 
@@ -137,11 +138,9 @@ export function ChainPanel({ active }: { active: boolean }) {
     <section className="panel">
       <p className="kicker">{t.chainKicker}</p>
       <h2>{t.chainTitle}</h2>
-      <ul className="end tight">
-        <li>{t.chainLimit1}</li>
-        <li>{t.chainLimit2}</li>
-        {!running ? <li>{t.chainNotRunning}</li> : null}
-      </ul>
+      <ChainPicture />
+      <p className="kicker">{t.dMeasured}</p>
+      {!running ? <p className="notice">{t.chainNotRunning}</p> : null}
       {running ? (
         <div className="topo">
           {topology?.nodes?.map((node) => (

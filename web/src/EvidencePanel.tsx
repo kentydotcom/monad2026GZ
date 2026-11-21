@@ -1,4 +1,5 @@
 import { explorerHref, scanHref } from "./api";
+import { FeeSketch } from "./diagrams";
 import { feeMon, gwei, type Evidence, type Side } from "./evidence";
 import { useT } from "./lang";
 
@@ -14,22 +15,12 @@ export function EvidencePanel({ evidence }: { evidence: Evidence }) {
         <Card title={t.before} side={evidence.before} />
         <Card title={t.after} side={evidence.after} />
       </div>
-      <dl className="fields compact">
-        <Field k={t.fieldTx} v={evidence.txHash ?? t.notMeasured} />
-        <Field k={t.gasCharged} v={evidence.gasLimit ?? t.notMeasured} />
-        <Field k={t.gasPrice} v={price === null ? t.notMeasured : `${price} gwei`} />
-        <Field k={t.fee} v={mon === null ? t.notMeasured : `${mon} MON`} />
-        <Field k={t.roundTrip} v={evidence.roundTripMs === null ? t.notMeasured : `${evidence.roundTripMs} ms`} />
-      </dl>
-      <ul className="end tight">
-        <li>{t.chargeNote}</li>
-        {evidence.gasUsed && evidence.gasLimit && evidence.gasUsed !== evidence.gasLimit ? (
-          <li>
-            {t.gasUsed} {evidence.gasUsed}
-          </li>
-        ) : null}
-        <li>{t.timingNote}</li>
-      </ul>
+      <FeeSketch
+        limit={evidence.gasLimit ?? t.notMeasured}
+        price={price === null ? t.notMeasured : `${price} gwei`}
+        fee={mon === null ? t.notMeasured : `${mon} MON`}
+        clock={evidence.roundTripMs === null ? t.notMeasured : `${evidence.roundTripMs} ms`}
+      />
       {explorer ? (
         <div className="links">
           <a href={explorer} target="_blank" rel="noreferrer">
@@ -74,11 +65,3 @@ function labelFor(side: Side, t: ReturnType<typeof useT>["t"]): string {
   return t.observedError;
 }
 
-function Field({ k, v }: { k: string; v: string }) {
-  return (
-    <div>
-      <dt>{k}</dt>
-      <dd>{v}</dd>
-    </div>
-  );
-}
