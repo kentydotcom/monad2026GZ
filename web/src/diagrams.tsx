@@ -116,20 +116,30 @@ export function CheckSketch() {
 export function FeeSketch({ limit, price, fee, clock }: { limit: string; price: string; fee: string; clock: string }) {
   const { t } = useT();
   return (
-    <Picture label={t.dMeasured}>
-      <div className="flow">
-        <NodeBox name={limit} mark={t.gasCharged} />
-        <span className="op">×</span>
-        <NodeBox name={price} mark={t.gasPrice} />
-        <span className="op">=</span>
-        <NodeBox name={fee} mark={t.fee} />
-      </div>
-      <div className="flow">
-        <NodeBox name={clock} mark={t.dClock} />
-        <span className="op">≠</span>
-        <NodeBox name={t.dNotFinal} />
-      </div>
-    </Picture>
+    <>
+      <Picture label={t.dPicture}>
+        <div className="flow compact">
+          <NodeBox name={t.gasCharged} />
+          <span className="op">×</span>
+          <NodeBox name={t.gasPrice} />
+          <span className="op">=</span>
+          <NodeBox name={t.fee} />
+        </div>
+        <div className="flow compact">
+          <NodeBox name={t.dClock} />
+          <span className="op">≠</span>
+          <NodeBox name={t.dNotFinal} />
+        </div>
+      </Picture>
+      <Picture label={t.dMeasured}>
+        <div className="flow compact">
+          <NodeBox name={limit} mark={t.gasCharged} />
+          <NodeBox name={price} mark={t.gasPrice} />
+          <NodeBox name={fee} mark={t.fee} />
+          <NodeBox name={clock} mark={t.dClock} />
+        </div>
+      </Picture>
+    </>
   );
 }
 
@@ -162,14 +172,37 @@ export function WhySplit() {
 export function StepRail({ step }: { step: number }) {
   const { t } = useT();
   const names = [t.step1, t.step2, t.step3, t.step4, t.step5, t.step6];
+  const flows = [
+    [t.e1in, t.e1op, t.e1out],
+    [t.e2in, t.e2op, t.e2out],
+    [t.e3in, t.e3op, t.e3out],
+    [t.e4in, t.e4op, t.e4out],
+    [t.e5in, t.e5op, t.e5out],
+    [t.e6in, t.e6op, t.e6out],
+  ];
+  const row = flows[step - 1] ?? flows[0] ?? ["", "", ""];
+  const inn = row[0] ?? "";
+  const op = row[1] ?? "";
+  const out = row[2] ?? "";
   return (
-    <Picture label={t.dPicture}>
-      <div className="rail">
-        {names.map((name, index) => (
-          <NodeBox key={name} name={name} hot={index + 1 === step} dim={index + 1 !== step} />
-        ))}
-      </div>
-    </Picture>
+    <>
+      <Picture label={t.dPicture}>
+        <div className="rail">
+          {names.map((name, index) => (
+            <NodeBox key={name} name={name} hot={index + 1 === step} dim={index + 1 !== step} />
+          ))}
+        </div>
+      </Picture>
+      <Picture label={names[step - 1] ?? t.dPicture}>
+        <div className="flow compact">
+          <NodeBox name={inn} mark={t.dIn} />
+          <Arrow />
+          <NodeBox name={op} mark={t.dOp} hot />
+          <Arrow />
+          <NodeBox name={out} mark={t.dOut} />
+        </div>
+      </Picture>
+    </>
   );
 }
 
@@ -180,23 +213,25 @@ export function ChainPicture() {
       <div className="lanes">
         <div className="lane host">
           <p className="kicker">{t.dHost}</p>
-          <div className="flow">
+          <div className="flow compact">
             <NodeBox name={t.dLeader} />
             <NodeBox name={t.dReplica} />
             <NodeBox name={t.dReplica} />
           </div>
-          <div className="flow">
+          <div className="flow compact">
             <NodeBox name={t.dBody} />
             <Arrow />
             <NodeBox name={t.dGone} gone />
-          </div>
-          <div className="flow">
+            <Arrow />
             <NodeBox name={t.dHeader} mark={t.dStays} />
             <NodeBox name={t.dAudit} mark={t.dStays} />
             <Arrow />
             <NodeBox name={t.dMonad} mark={t.dAnchor} />
           </div>
-          <p className="bound">{t.dNotBft} · {t.dNotBackup} · {t.dNotForensic} · {t.dNotFinal}</p>
+          <p className="bound plain">{t.dHostLine}</p>
+          <p className="bound plain">{t.dNotBackup}</p>
+          <p className="bound plain">{t.dNotForensic}</p>
+          <p className="bound plain">{t.dNotFinal}</p>
         </div>
         <div className="lane">
           <p className="kicker">{t.dBrowser}</p>
@@ -211,7 +246,7 @@ export function AnchorLink() {
   const { t } = useT();
   return (
     <Picture label={t.dPicture}>
-      <div className="flow">
+      <div className="flow compact">
         <NodeBox name={t.dLeader} />
         <NodeBox name={t.dReplica} />
         <NodeBox name={t.dReplica} />

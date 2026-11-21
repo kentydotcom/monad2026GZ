@@ -34,6 +34,12 @@ test("simplified Chinese stays on commit, erase, and check", () => {
   assert.match(joined, /团队存储/);
   assert.equal(joined.includes("证明删除"), false);
   assert.equal(copy.zh.byline, "Kent G Lau, PhD");
+  assert.equal(copy.zh.dNotForensic.includes("非法医"), false);
+  assert.match(copy.zh.dNotForensic, /取证/);
+  assert.equal(copy.zh.dNotBackup, "不覆盖备份");
+  assert.match(copy.zh.dHostLine, /单机三个进程/);
+  assert.equal(copy.en.dMeasured, "Measurements");
+  assert.equal(copy.zh.dMeasured, "测量");
   assert.equal(copy.en.byline, "Kent G Lau, PhD");
   assert.match(copy.zh.lede, /WYRVEL|哈希/);
   assert.match(joined, /300/);
