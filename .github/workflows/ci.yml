@@ -1,0 +1,33 @@
+name: wyrvel
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: foundry-rs/foundry-toolchain@v1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Contract tests
+        run: forge test
+      - name: Store dependencies and vault test
+        run: |
+          npm ci --prefix store
+          npm test --prefix store
+      - name: Judge Tour build
+        run: |
+          npm ci --prefix web
+          npm run build --prefix web
+      - name: Private chain
+        run: ./scripts/pchain-e2e.sh --ci
+      - name: Local end-to-end
+        run: ./scripts/e2e.sh --local
+      - name: Testnet end-to-end wiring
+        run: ./scripts/e2e.sh --ci

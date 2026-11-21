@@ -1,0 +1,20 @@
+{
+  "name": "wyrvel-store",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx src/index.ts",
+    "start": "tsx src/index.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test test/*.test.ts",
+    "deploy-seal": "tsx src/deploy-seal.ts"
+  },
+  "dependencies": {
+    "ethers": "^6.15.0",
+    "tsx": "^4.20.6"
+  },
+  "devDependencies": {
+    "@types/node": "^22.19.1",
+    "typescript": "^5.9.3"
+  }
+}

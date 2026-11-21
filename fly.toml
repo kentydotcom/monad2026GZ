@@ -1,0 +1,25 @@
+app = "wyrvel-blitz"
+primary_region = "sin"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  WYRVEL_CHAIN = "1"
+
+[http_service]
+  internal_port = 8787
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 0
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"
+
+# The team store lives here. Create the volume before the first deploy:
+# fly volumes create wyrvel_data --region sin --size 1 --app wyrvel-blitz
+[[mounts]]
+  source = "wyrvel_data"
+  destination = "/data"

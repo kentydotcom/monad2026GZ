@@ -1,0 +1,273 @@
+export type Meta = {
+  ok: boolean;
+  hash: string;
+  contract: string | null;
+  chainId: number | null;
+  chainName: string;
+  chainError: string | null;
+};
+
+export type Pin = {
+  txHash: string;
+  blockNumber: number;
+  pinnedAt: number;
+  pinner: string;
+  chainId: number;
+  explorer: string | null;
+  monadscan: string | null;
+  gasUsed: string | null;
+  gasLimit: string | null;
+  effectiveGasPrice: string | null;
+  feeWei: string | null;
+  receiptWaitMs: number | null;
+};
+
+export type CommitResponse = {
+  ok: true;
+  recordId: string;
+  commitment: string;
+  byteLength: number;
+  storedAt: string;
+  pin: Pin;
+};
+
+export type CheckResponse = {
+  ok: boolean;
+  recordId: string;
+  recoverable: boolean;
+  payload: string | null;
+  seal: {
+    pinned: boolean;
+    commitment: string;
+    pinnedAt: number;
+    pinner: string;
+  } | null;
+  matches: boolean | null;
+  txHash: string | null;
+  explorer: string | null;
+  monadscan: string | null;
+  error?: string;
+};
+
+export type StepResponse = {
+  ok: boolean;
+  step: number;
+  title?: string;
+  log: string[];
+  error?: string;
+};
+
+const VISION = /^https:\/\/testnet\.monadvision\.com\/tx\/0x[0-9a-fA-F]{64}$/;
+const SCAN = /^https:\/\/testnet\.monadscan\.com\/tx\/0x[0-9a-fA-F]{64}$/;
+
+export function explorerHref(value: string | null | undefined): string | null {
+  if (!value || !VISION.test(value)) return null;
+  return value;
+}
+
+export function scanHref(value: string | null | undefined): string | null {
+  if (!value || !SCAN.test(value)) return null;
+  return value;
+}
+
+async function readBody(res: Response): Promise<Record<string, unknown>> {
+  const text = await res.text();
+  if (!text) return {};
+  try {
+    return JSON.parse(text) as Record<string, unknown>;
+  } catch {
+    return { error: text.slice(0, 400) };
+  }
+}
+
+function message(body: Record<string, unknown>, fallback: string): string {
+  return typeof body.error === "string" && body.error.length > 0 ? body.error : fallback;
+}
+
+export async function fetchMeta(): Promise<Meta> {
+  const res = await fetch("/v1/meta");
+  const body = await readBody(res);
+  if (!res.ok) throw new Error(message(body, "The store did not answer."));
+  return body as unknown as Meta;
+}
+
+export async function commit(payload: string): Promise<CommitResponse> {
+  const res = await fetch("/v1/records", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ payload }),
+  });
+  const body = await readBody(res);
+  if (!res.ok) throw new Error(message(body, "Commit failed."));
+  return body as unknown as CommitResponse;
+}
+
+export async function erase(recordId: string): Promise<{ erasedAt: string | null }> {
+  const res = await fetch(`/v1/records/${recordId}/erase`, { method: "POST" });
+  const body = await readBody(res);
+  if (!res.ok) throw new Error(message(body, "Erase failed."));
+  return { erasedAt: typeof body.erasedAt === "string" ? body.erasedAt : null };
+}
+
+export async function check(recordId: string): Promise<CheckResponse> {
+  const res = await fetch(`/v1/check/${recordId}`);
+  const body = (await readBody(res)) as unknown as CheckResponse & { error?: string };
+  if (!body || typeof body.recordId !== "string") {
+    throw new Error("Check did not return a record.");
+  }
+  return body;
+}
+
+export async function runStep(step: number): Promise<StepResponse> {
+  const res = await fetch(`/v1/e2e/steps/${step}`, { method: "POST" });
+  const body = (await readBody(res)) as unknown as StepResponse;
+  return {
+    ok: Boolean(body.ok),
+    step,
+    title: body.title,
+    log: Array.isArray(body.log) ? body.log : [],
+    error: body.error,
+  };
+}
+
+export type ChainNode = {
+  nodeId: string;
+  role: string;
+  ready?: boolean;
+  height?: number | null;
+  reachable?: boolean;
+  found?: boolean;
+  headerHash: string | null;
+  bodyCommitment: string | null;
+  pruned?: boolean;
+  payloadPresent: boolean;
+  payload: string | null;
+  code: string;
+};
+
+export type ChainTopology = {
+  ok: boolean;
+  code?: string;
+  mechanism?: string;
+  consensus?: string;
+  bft?: boolean;
+  failureDomain?: string;
+  nodes?: Array<{ id: string; role: string | null; reachable: boolean; height: number | null; ready: boolean }>;
+};
+
+export type AnchorView = {
+  anchored: boolean;
+  status: "pending" | "confirmed" | "failed";
+  code: string;
+  index: number;
+  kind: "data" | "prune";
+  recordId: string;
+  commitment: string;
+  headerHash: string;
+  txHash: string | null;
+  explorer: string | null;
+  monadscan: string | null;
+  readback: "match" | "mismatch" | "unread";
+  feeWei: string | null;
+  gasLimit: string | null;
+  effectiveGasPrice: string | null;
+};
+
+export type ChainOp = {
+  ok: boolean;
+  status?: string;
+  code?: string;
+  index?: number | null;
+  hash?: string | null;
+  bodyCommitment?: string | null;
+  anchor?: AnchorView | null;
+  replicas?: Array<{ id: string; ok: boolean; code: string }>;
+};
+
+export type ChainObserve = {
+  ok: boolean;
+  index?: number;
+  nodes?: ChainNode[];
+  code?: string;
+};
+
+export async function chainTopology(): Promise<ChainTopology> {
+  const res = await fetch("/v1/pchain/topology");
+  const body = (await readBody(res)) as ChainTopology;
+  return body;
+}
+
+export async function chainAppend(payload: string): Promise<ChainOp> {
+  const res = await fetch("/v1/pchain/append", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ payload }),
+  });
+  return (await readBody(res)) as ChainOp;
+}
+
+export async function chainPrune(index: number): Promise<ChainOp> {
+  const res = await fetch("/v1/pchain/prune", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ index }),
+  });
+  return (await readBody(res)) as ChainOp;
+}
+
+export async function chainObserve(index: number): Promise<ChainObserve> {
+  const res = await fetch(`/v1/pchain/observe/${index}`);
+  return (await readBody(res)) as ChainObserve;
+}
+
+export type ChainAuditNode = {
+  nodeId?: string;
+  reachable?: boolean;
+  found: boolean;
+  code: string;
+  height: number | null;
+  target: number;
+  index: number | null;
+  hash: string | null;
+  prev: string | null;
+  targetHeader: string | null;
+  commitment: string | null;
+  signer: string | null;
+  authorized: boolean;
+  links: boolean;
+};
+
+export type ChainAudit = {
+  ok: boolean;
+  target?: number;
+  leader?: ChainAuditNode | null;
+  nodes?: ChainAuditNode[];
+  code?: string;
+};
+
+export async function chainAnchors(index: number): Promise<{ data: AnchorView | null; audit: AnchorView | null }> {
+  const res = await fetch(`/v1/pchain/anchors/${index}`);
+  const body = (await readBody(res)) as { data?: AnchorView | null; audit?: AnchorView | null };
+  return { data: body.data ?? null, audit: body.audit ?? null };
+}
+
+export async function chainPinAnchor(index: number, kind: "data" | "prune"): Promise<AnchorView | null> {
+  const res = await fetch(`/v1/pchain/anchors/${index}`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ kind }),
+  });
+  const body = (await readBody(res)) as { anchor?: AnchorView };
+  return body.anchor ?? null;
+}
+
+export async function chainAudit(index: number): Promise<ChainAudit> {
+  const res = await fetch(`/v1/pchain/audit/${index}`);
+  return (await readBody(res)) as ChainAudit;
+}
+
+export function formatPin(seconds: number): string {
+  const date = new Date(seconds * 1000);
+  if (Number.isNaN(date.getTime()) || seconds === 0) return "—";
+  return date.toISOString().replace(".000Z", "Z");
+}

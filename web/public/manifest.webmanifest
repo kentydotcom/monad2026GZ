@@ -1,0 +1,30 @@
+{
+  "name": "WYRVEL",
+  "short_name": "WYRVEL",
+  "description": "Pin a hash. Keep the data private. Erase it. Check that it is gone. 记下哈希。数据留在团队侧。擦除团队副本。核对是否还能取回。",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#16110d",
+  "theme_color": "#16110d",
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
