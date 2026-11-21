@@ -76,24 +76,18 @@ python3 - <<PY
 import tarfile
 bad = []
 with tarfile.open("$DEST/wyrvel-source.tar.gz") as tar:
-    for name in tar.getnames():
-        lower = name.lower()
-        if (
-            "/.git" in lower
-            or lower.startswith(".git")
-            or "node_modules" in lower
-            or lower.endswith("/.env")
-            or "/.env." in lower
-            or ".secrets" in lower
-            or "/cache/" in lower
-            or name.startswith("cache")
-            or "/broadcast/" in lower
-            or "forge-std/test" in lower
-        ):
+    names = tar.getnames()
+    for name in names:
+        parts = [part for part in name.split("/") if part not in ("", ".")]
+        if any(part in {".git", ".secrets", "node_modules", "cache", "broadcast"} for part in parts):
+            bad.append(name)
+        elif parts and parts[-1] in {".env", ".env.local"}:
+            bad.append(name)
+        elif "forge-std/test" in name:
             bad.append(name)
 if bad:
     raise SystemExit("bundle contains excluded paths:\\n" + "\\n".join(bad[:20]))
-print("bundle entries", len(tar.getnames()))
+print("bundle entries", len(names))
 PY
 
 python3 - <<PY
