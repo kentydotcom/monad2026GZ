@@ -2,9 +2,94 @@
 
 Pin a hash. Keep the data private. Erase it. Check that it is gone.
 
-WYRVEL is a Monad Blitz Guangzhou demo (21 Nov 2026). The payload stays in a store the team controls. Monad testnet (chain id 10143) receives only a 32-byte keccak256 pin under a record id. The seal contract stores that hash, a timestamp, and the pinner, emits `Committed`, and does not keep the payload. Erase removes the private copy. Check is a separate view: read the seal, then try to recover the payload.
+WYRVEL is the Monad adapter for DDC, a private core that can delete authorized payloads while retaining hash-linked headers and a signed prune audit. WYRVEL anchors data and audit hashes on Monad so those commitments can be checked independently. Only hashes go to Monad, never sensitive payload bodies. Further public-chain adapters are planned and are not implemented.
+
+![WYRVEL product diagram: private commit in DDC, data-hash receipt on Monad, authorized erase of the private payload with a signed prune audit retained, and independent check of retained history plus Monad data and audit readback. Foundation rail: DDC is the private core, WYRVEL is the Monad adapter, and Monad holds data and audit hashes. Byline Kent G Lau, PhD.](docs/images/wyrvel-monad-product.png)
+
+**WYRVEL: private data. Public receipts on Monad.**
+
+Selective private-payload retention. Publicly checkable commitments.
+
+This repository is the Monad Blitz Guangzhou demo (21 Nov 2026). The payload stays in a store the team controls. Monad testnet (chain id 10143) receives only a 32-byte keccak256 pin under a record id. The seal contract stores that hash, a timestamp, and the pinner, emits `Committed`, and does not keep the payload. Erase removes the private copy. Check is a separate view: read the seal, then try to recover the payload.
 
 The same keccak256 of the UTF-8 payload is used in the contract tests, the store, and the end-to-end script.
+
+## Architecture
+
+DDC is the private core. WYRVEL is the Monad adapter. Monad holds hash commitments only, with independent readback.
+
+```mermaid
+flowchart LR
+  DDC["DDC<br/>Private core"]
+  WYRVEL["WYRVEL<br/>Monad adapter"]
+  MONAD["Monad<br/>Data and audit hashes"]
+  PLANNED["More public-chain adapters<br/>Planned, not implemented"]
+  DDC --> WYRVEL --> MONAD
+  WYRVEL -.-> PLANNED
+```
+
+- **DDC** stores private payload bodies and retains hash-linked headers plus a signed prune audit after an authorized erase.
+- **WYRVEL** anchors data hashes and audit hashes on Monad.
+- **Monad** records those hash commitments so a second party can read them back independently. It does not receive sensitive payload bodies.
+- **Further adapters** to other public chains are planned. They are not implemented.
+
+| Marker | Meaning |
+| --- | --- |
+| ![Private commit](docs/images/icons/icon-private-commit.svg) | Private commit |
+| ![Receipt on Monad](docs/images/icons/icon-receipt-on-monad.svg) | Data-hash receipt on Monad |
+| ![Authorized erase](docs/images/icons/icon-authorized-erase.svg) | Authorized erase of the private payload |
+| ![Independent check](docs/images/icons/icon-independent-check.svg) | Independent check |
+| ![DDC core](docs/images/icons/icon-ddc-core.svg) | DDC private core |
+| ![WYRVEL adapter](docs/images/icons/icon-wyrvel-adapter.svg) | WYRVEL Monad adapter |
+| ![Monad receipts](docs/images/icons/icon-monad-receipts.svg) | Monad hash commitments |
+| ![Planned adapters](docs/images/icons/icon-planned-adapters.svg) | Further adapters, planned and not implemented |
+
+## Workflow
+
+```mermaid
+flowchart LR
+  A["1. Private commit<br/>Commit the payload in DDC<br/>Retain hash-linked headers"]
+  B["2. Receipt on Monad<br/>WYRVEL anchors the data hash"]
+  C["3. Authorized erase<br/>Remove the private payload<br/>Retain the signed prune audit"]
+  D["4. Independent check<br/>Retained history plus<br/>Monad data and audit readback"]
+  A --> B --> C --> D
+```
+
+Authorized erase refers to the private payload in DDC. It does not delete records on Monad, and it does not erase copies held elsewhere.
+
+## DDC: deletable data, retained history
+
+Remove the payload. Preserve the chain of events. Private payloads never enter a public chain.
+
+![DDC overview diagram: private data with hash-linked headers, a signed prune, the payload removed while headers remain, and history retained with a signed prune audit. Only hashes leave through WYRVEL, the Monad adapter, to Monad public hash receipts. Further public-chain adapters are marked planned, not implemented. Byline Kent G Lau, PhD.](docs/images/ddc-overview.png)
+
+### 简体中文图
+
+![WYRVEL 产品图：在 DDC 中私密提交、在 Monad 上锚定数据哈希凭证、授权删除私密载荷并保留带签名的裁剪审计，以及独立核验保留的历史记录与 Monad 数据／审计读回。基础层：DDC 为私密核心，WYRVEL 为 Monad 适配器，Monad 保存数据与审计哈希。署名 Kent G Lau, PhD。](docs/images/wyrvel-monad-product-zh-CN.png)
+
+![DDC 总览图：私密数据与哈希关联头部、签名裁剪、载荷已移除而头部仍保留、历史已保留并带有签名裁剪审计。仅哈希通过 WYRVEL（Monad 适配器）进入 Monad 的公开哈希凭证。更多公链适配器为规划中，尚未实现。署名 Kent G Lau, PhD。](docs/images/ddc-overview-zh-CN.png)
+
+## Local demo hardware
+
+This local demo was run on a regular 16 GB laptop, not a server. That is only evidence that this demo can run on an ordinary machine. It is not a recommended minimum, a production specification, or a benchmark, and it is not a guarantee that every laptop will work.
+
+**Observed on this demo host**
+
+- Host memory: 15.25 GiB (a typical laptop marketed as 16 GB).
+- Workload: a full single-node Monad Solonet — consensus, execution, and RPC — plus the local WYRVEL and DDC demo.
+- Solonet Docker cgroup memory: about 1.67 GiB. This figure does **not** include a separate 4 GiB hugepage reservation on the host. Do not treat 1.67 GiB as Solonet’s total memory use.
+- TrieDB: configured at a fixed 6 GiB. This is a configured database size. Do not add it to the cgroup figure as if it were proven additional RAM.
+
+**What you need in order to try a similar local demo**
+
+- A Linux host with Docker.
+- Hugepages support, and enough free host memory for a multi-GiB hugepage reservation in addition to ordinary container memory.
+- Clear disk headroom. The TrieDB alone is configured at 6 GiB, before container images, chain data, and logs.
+- Avoid heavy concurrent applications while the demo is running.
+
+This demo host was documented on 2026-10-26 as Kubuntu (Ubuntu 26.04.1 LTS). That operating-system string was not re-verified when this note was prepared on 2026-11-21. CPU model and storage model or capacity are omitted pending verification.
+
+Monad’s public hash commitments can be read back independently. Running a local Solonet node does not mean WYRVEL or DDC inherit Monad consensus or security properties.
 
 ## Quick start
 

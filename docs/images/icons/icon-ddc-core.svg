@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" role="img" aria-labelledby="title">
+  <title id="title">ddc core</title>
+  <desc>Original WYRVEL line icon. Palette ink #16110D, cream #F3ECDF, gold #C6A36E, body #E7D9C3. Stroke 2, round caps and joins.</desc>
+  <rect width="96" height="96" rx="16" fill="#F3ECDF"/>
+  <g stroke="#16110D" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <ellipse cx="48" cy="26" rx="16" ry="8"/>
+    <path d="M32 26v44c0 4.4 7.2 8 16 8s16-3.6 16-8V26"/>
+    <path d="M32 48c0 4.4 7.2 8 16 8s16-3.6 16-8"/>
+  </g>
+</svg>

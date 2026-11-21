@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" role="img" aria-labelledby="title">
+  <title id="title">planned adapters</title>
+  <desc>Original WYRVEL line icon. Palette ink #16110D, cream #F3ECDF, gold #C6A36E, body #E7D9C3. Stroke 2, round caps and joins.</desc>
+  <rect width="96" height="96" rx="16" fill="#F3ECDF"/>
+  <rect x="18" y="28" width="60" height="40" rx="6" fill="none" stroke="#C6A36E" stroke-width="2" stroke-dasharray="4 3" stroke-linecap="round"/>
+  <g stroke="#C6A36E" stroke-width="2" fill="none" stroke-linecap="round">
+    <path d="M40 48h16M48 40v16"/>
+  </g>
+</svg>
