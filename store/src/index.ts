@@ -12,6 +12,15 @@ const privateKey = blankToNull(process.env.PRIVATE_KEY);
 const contract = blankToNull(process.env.WYRVEL_CONTRACT);
 const staticDir = process.env.STATIC_DIR ? resolve(process.env.STATIC_DIR) : null;
 const localAdmin = process.env.WYRVEL_LOCAL_ADMIN === "1";
+const gatePassword = blankToNull(process.env.WYRVEL_GATE_PASSWORD);
+const production = process.env.NODE_ENV === "production";
+
+if (production && !gatePassword) {
+  console.error(
+    "WYRVEL_GATE_PASSWORD is required when NODE_ENV=production. The HTTP username is kent. Inject the password in the host environment. No password is stored in this image.",
+  );
+  process.exit(1);
+}
 
 const vault = new Vault(dataDir);
 await vault.load();
@@ -20,7 +29,7 @@ await chain.loadArtifact();
 await chain.refresh();
 const service = new Service(vault, chain);
 
-const server = await startServer({ service, host, port, staticDir, localAdmin });
+const server = await startServer({ service, host, port, staticDir, localAdmin, gatePassword });
 console.log(
   JSON.stringify({
     listening: `${host}:${server.port}`,
@@ -28,6 +37,7 @@ console.log(
     chainError: chain.chainError,
     contract: chain.contractAddress,
     hash: "keccak256",
+    gate: gatePassword ? "on" : "off",
   }),
 );
 

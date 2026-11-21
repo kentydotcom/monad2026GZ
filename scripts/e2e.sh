@@ -11,8 +11,8 @@
 #
 # Hash: keccak256 of the UTF-8 payload, everywhere.
 # Chain id 10143 is Monad testnet. Only that chain gets a public explorer link.
-# The private key is read from the environment. --local uses Anvil's published
-# development account and does not read a key file.
+# The private key is read from the environment. --local reads Anvil account 0
+# from Anvil's own startup log and does not keep a key in this file.
 
 set -euo pipefail
 set -m
@@ -26,8 +26,6 @@ RPC_URL_BACKUP="${RPC_URL_BACKUP:-https://rpc-testnet.monadinfra.com}"
 STORE_URL="${STORE_URL:-http://127.0.0.1:8787}"
 STORE_PORT="${STORE_PORT:-8787}"
 ANVIL_PORT="${ANVIL_PORT:-8545}"
-# Published Anvil development account 0. Not a secret. Local runs only.
-ANVIL_PRIVATE_KEY="0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
 PAYLOAD_TEXT="WYRVEL keeps this sentence private until erase."
 
 MODE="menu"
@@ -176,6 +174,7 @@ step_deploy() {
     need forge
     [[ -n "${PRIVATE_KEY:-}" ]] || die "PRIVATE_KEY is not set, so the seal cannot be deployed."
     say "  Deploying WyrvelSeal with forge script."
+    estimate_deploy
     (
       cd "$ROOT"
       forge script script/Deploy.s.sol:Deploy \
@@ -184,7 +183,7 @@ step_deploy() {
         --non-interactive \
         >"$STATE_DIR/deploy.log" 2>&1
     ) || {
-      tail -n 40 "$STATE_DIR/deploy.log" >&2 || true
+      grep -v -E '0x[0-9a-fA-F]{64}' "$STATE_DIR/deploy.log" | tail -n 40 >&2 || true
       if grep -Eq "insufficient funds|intrinsic gas|gas required exceeds" "$STATE_DIR/deploy.log"; then
         die "Deploy failed. The account may not have enough testnet MON. Claim from https://faucet.monad.xyz and retry. See $STATE_DIR/deploy.log"
       fi
@@ -402,8 +401,34 @@ start_anvil() {
     fi
     sleep 0.1
   done
-  tail -n 30 "$STATE_DIR/anvil.log" >&2 || true
+  grep -v -E '0x[0-9a-fA-F]{64}' "$STATE_DIR/anvil.log" | tail -n 20 >&2 || true
   die "Anvil did not become ready."
+}
+
+# Account 0 is printed by Anvil itself. It stays in this process and is not written back to the repo.
+read_anvil_key() {
+  local log="$1"
+  local key=""
+  key="$(awk 'f && $1 == "(0)" { print $2; exit } /Private Keys/ { f = 1 }' "$log")"
+  if [[ ! "$key" =~ ^0x[0-9a-fA-F]{64}$ ]]; then
+    die "Anvil did not publish account 0. The local deploy was not broadcast."
+  fi
+  export PRIVATE_KEY="$key"
+}
+
+estimate_deploy() {
+  local from="" bytecode="" est=""
+  from="$(
+    cd "$ROOT/store"
+    node --input-type=module -e 'import {Wallet} from "ethers"; const k=process.env.PRIVATE_KEY??""; if(!k) process.exit(1); process.stdout.write(new Wallet(k).address);'
+  )"
+  bytecode="$(python3 -c 'import json,sys; b=json.load(open(sys.argv[1]))["bytecode"]; print(b if str(b).startswith("0x") else "0x"+b)' "$ROOT/store/src/artifact.json")"
+  if ! est="$(cast estimate --rpc-url "$RPC_URL" --from "$from" --create "$bytecode" 2>"$STATE_DIR/estimate.err")"; then
+    grep -v -E '0x[0-9a-fA-F]{64}' "$STATE_DIR/estimate.err" >&2 || true
+    die "Gas estimate failed. The deploy was not broadcast."
+  fi
+  [[ "$est" =~ ^[0-9]+$ ]] || die "Gas estimate was not a number. The deploy was not broadcast."
+  ok "Gas estimate for the seal deploy is ${est}. Broadcasting only after that estimate."
 }
 
 start_store() {
@@ -454,8 +479,33 @@ pick_testnet_rpc() {
   die "Monad testnet RPC is unreachable. Tried ${RPC_URL} and ${RPC_URL_BACKUP}."
 }
 
+credentials_present() {
+  local key="${PRIVATE_KEY:-}"
+  key="${key//[[:space:]]/}"
+  [[ -n "$key" ]]
+}
+
+summarize_success() {
+  local label="$1"
+  if [[ -z "$CONTRACT" || -z "$TX_HASH" || -z "$COMMITMENT" || -z "$RECORD_ID" || -z "$CHAIN_ID" ]]; then
+    die "Refusing a silent success. Deploy, commit, and the seal check did not all produce results."
+  fi
+  cat <<EOF
+
+WYRVEL e2e ${label} passed.
+All six steps ran on chain ${CHAIN_ID}. This is not a skipped run.
+1 deploy or locate    ${CONTRACT}
+2 commit transaction  ${TX_HASH}
+3 payload matches the seal for ${RECORD_ID}
+4 erase sent no transaction
+5 team-store copy is unrecoverable
+6 seal unchanged      ${COMMITMENT}
+
+EOF
+}
+
 prepare_ci() {
-  if [[ -z "${PRIVATE_KEY:-}" ]]; then
+  if ! credentials_present; then
     cat <<'EOF'
 WYRVEL e2e --ci skipped: PRIVATE_KEY is not set.
 
@@ -466,6 +516,8 @@ No transaction was sent.
 EOF
     exit 0
   fi
+  PRIVATE_KEY="${PRIVATE_KEY//[[:space:]]/}"
+  export PRIVATE_KEY
   need cast
   need forge
   need curl
@@ -488,9 +540,10 @@ prepare_local() {
   need cast
   need forge
   need curl
-  export PRIVATE_KEY="$ANVIL_PRIVATE_KEY"
+  need node
   CONTRACT=""
   start_anvil
+  read_anvil_key "$STATE_DIR/anvil.log"
   step_deploy
   start_store
 }
@@ -578,17 +631,22 @@ trap cleanup EXIT
 case "$MODE" in
   local)
     prepare_local
-    run_all
-    ;;
-  ci)
-    prepare_ci
-    # step 1 already ran inside prepare_ci so the store has the seal address.
     step_commit
     step_match
     step_erase
     step_gone
     step_seal
-    say "All six steps passed on Monad testnet."
+    summarize_success "local"
+    ;;
+  ci)
+    prepare_ci
+    # Step 1 already ran inside prepare_ci, against the live RPC, before the store started.
+    step_commit
+    step_match
+    step_erase
+    step_gone
+    step_seal
+    summarize_success "ci"
     ;;
   step)
     load_state

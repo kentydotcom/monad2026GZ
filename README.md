@@ -45,7 +45,7 @@ Use one browser for the operator and the Check tab as the second-party view.
 
 `--local` runs all six steps: deploy the seal, commit a payload and pin its hash, verify the payload matches the seal, erase the private copy, verify the payload is unrecoverable, verify the seal is unchanged.
 
-`--ci` uses `https://testnet-rpc.monad.xyz` and falls back to `https://rpc-testnet.monadinfra.com`. It reads `PRIVATE_KEY` from the environment. If `PRIVATE_KEY` is unset, it prints a skip message and exits 0. No key is committed. Copy `.env.example` to `.env` locally and leave `.env` out of git.
+`--ci` uses `https://testnet-rpc.monad.xyz` and falls back to `https://rpc-testnet.monadinfra.com`. It reads `PRIVATE_KEY` from the environment. If `PRIVATE_KEY` is unset, it prints a skip message and exits 0. If `PRIVATE_KEY` is set, a passing run prints `WYRVEL e2e ci passed` only after all six steps have produced a contract, a transaction, and an unchanged seal. A failed step exits non-zero. No key is committed. Copy `.env.example` to `.env` locally and leave `.env` out of git. `.secrets/` is ignored as well.
 
 ```bash
 export PRIVATE_KEY=...          # testnet account with faucet MON
@@ -90,19 +90,35 @@ The store listens on port 8787.
 | `GET /v1/check/:id` | Read the seal from Monad and report whether the payload came back. |
 | `POST /v1/e2e/steps/1` … `6` | Run one end-to-end step and return the log. |
 
-## Deploy the tour to Fly
+## Deploy the seal, then the tour
 
-The app name is `wyrvel-blitz`, region `sin`, machine `shared-cpu-1x` with 512 MB (`fly.toml`). Deploy from your own machine after the seal is on testnet. Do not put a mainnet key in the store.
+Run this on the machine that holds the testnet signing key. The command reads `PRIVATE_KEY` from the environment, checks the signer, estimates gas, and only then broadcasts. It does not print the key.
+
+The funded testnet account for this demo is `0xD3Cea1317b62cB5C0CDe7e8a98cD80bBA2DC671e`.
+
+```bash
+npm ci --prefix store
+export PRIVATE_KEY            # set on this machine; do not write it into the repo
+export WYRVEL_GATE_PASSWORD   # set on this machine; the HTTP username is kent
+npm run deploy-seal --prefix store
+```
+
+Erase removes the copy in the team store only. The Monad seal stays. WYRVEL does not delete data held anywhere else.
+
+The Fly app is `wyrvel-blitz`, region `sin`, machine `shared-cpu-1x` with 512 MB. Record files live on a volume mounted at `/data`. Create that volume before the first deploy or the machine will not keep commits across restarts. The image runs with `NODE_ENV=production` and will not boot until `WYRVEL_GATE_PASSWORD` is set. The username is `kent`.
 
 ```bash
 fly apps create wyrvel-blitz
-fly secrets set \
-  PRIVATE_KEY=... \
+fly volumes create wyrvel_data --region sin --size 1 --app wyrvel-blitz
+fly secrets set --app wyrvel-blitz \
+  PRIVATE_KEY="$PRIVATE_KEY" \
+  WYRVEL_GATE_PASSWORD="$WYRVEL_GATE_PASSWORD" \
   WYRVEL_CONTRACT=0x... \
-  RPC_URL=https://testnet-rpc.monad.xyz \
-  --app wyrvel-blitz
-fly deploy --app wyrvel-blitz
+  RPC_URL=https://testnet-rpc.monad.xyz
+fly deploy --app wyrvel-blitz --region sin
 ```
+
+The store asks the node for the pending nonce and then assigns the next nonce itself, so two pins from one process do not reuse a nonce. A failed send reloads the pending nonce before the next attempt.
 
 ## Note
 

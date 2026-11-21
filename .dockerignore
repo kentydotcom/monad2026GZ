@@ -12,3 +12,5 @@ screenshots
 *.log
 .env
 .env.*
+.secrets/
+deploy-out/

@@ -1,6 +1,8 @@
 .env
 .env.*
 !.env.example
+.secrets/
+deploy-out/
 
 cache/
 out/

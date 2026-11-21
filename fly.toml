@@ -14,3 +14,9 @@ primary_region = "sin"
 [[vm]]
   size = "shared-cpu-1x"
   memory = "512mb"
+
+# The team store lives here. Create the volume before the first deploy:
+# fly volumes create wyrvel_data --region sin --size 1 --app wyrvel-blitz
+[[mounts]]
+  source = "wyrvel_data"
+  destination = "/data"

@@ -1,7 +1,9 @@
 import { readFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { Contract, ContractFactory, JsonRpcProvider, Wallet, hexlify, type InterfaceAbi } from "ethers";
+import { Contract, ContractFactory, JsonRpcProvider, Wallet, hexlify, type InterfaceAbi, type TransactionRequest } from "ethers";
+import { redactSecrets } from "./gate.js";
+import { NonceBook, bufferedGas } from "./nonce.js";
 
 export const MONAD_TESTNET_CHAIN_ID = 10143;
 const VISION_TX = "https://testnet.monadvision.com/tx/";
@@ -34,7 +36,7 @@ function publicExplorer(chainId: number | null, txHash: string): { explorer: str
   return { explorer: `${VISION_TX}${txHash}`, monadscan: `${SCAN_TX}${txHash}` };
 }
 
-export function errorText(err: unknown): string {
+export function errorText(err: unknown, secrets: Array<string | null | undefined> = []): string {
   let raw: string;
   if (err && typeof err === "object" && "shortMessage" in err) {
     raw = String((err as { shortMessage: unknown }).shortMessage);
@@ -43,13 +45,15 @@ export function errorText(err: unknown): string {
   } else {
     raw = String(err);
   }
-  return raw.replace(/0x[0-9a-fA-F]{64}/g, "0x…").slice(0, 600);
+  return redactSecrets(raw, secrets).slice(0, 600);
 }
 
 export class Chain {
   private provider: JsonRpcProvider | null = null;
   private abi: InterfaceAbi | null = null;
   private bytecode = "";
+  private readonly nonces = new NonceBook();
+  private sendLock: Promise<void> = Promise.resolve();
   chainId: number | null = null;
   chainError: string | null = null;
   contractAddress: string | null;
@@ -96,11 +100,61 @@ export class Chain {
     return this.provider;
   }
 
+  signerAddress(): string | null {
+    if (!this.privateKey) return null;
+    try {
+      return new Wallet(this.privateKey).address;
+    } catch {
+      return null;
+    }
+  }
+
   private signer(): Wallet {
     if (!this.privateKey) {
       throw new Error("PRIVATE_KEY is not set. WYRVEL will not invent a transaction.");
     }
-    return new Wallet(this.privateKey, this.requireProvider());
+    try {
+      return new Wallet(this.privateKey, this.requireProvider());
+    } catch {
+      throw new Error("PRIVATE_KEY is not a usable signing key. No transaction was sent.");
+    }
+  }
+
+  private scrub(err: unknown): Error {
+    return new Error(errorText(err, [this.privateKey]));
+  }
+
+  close(): void {
+    this.provider?.destroy();
+    this.provider = null;
+  }
+
+  async balanceOf(address: string): Promise<bigint> {
+    return this.requireProvider().getBalance(address);
+  }
+
+  private async withSendLock<T>(fn: () => Promise<T>): Promise<T> {
+    const previous = this.sendLock;
+    let release: () => void = () => {};
+    this.sendLock = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    await previous;
+    try {
+      return await fn();
+    } finally {
+      release();
+    }
+  }
+
+  private async gasLimitFor(tx: TransactionRequest, floor: bigint): Promise<{ estimate: bigint; gasLimit: bigint }> {
+    let estimate: bigint;
+    try {
+      estimate = await this.requireProvider().estimateGas(tx);
+    } catch (err) {
+      throw new Error(`Gas estimate failed. The transaction was not sent. ${errorText(err, [this.privateKey])}`);
+    }
+    return { estimate, gasLimit: bufferedGas(estimate, floor) };
   }
 
   private contract(address: string, signer?: Wallet): Contract {
@@ -113,34 +167,65 @@ export class Chain {
     return code !== "0x" && code !== "0x0";
   }
 
-  async deploy(): Promise<{ address: string; txHash: string }> {
+  async deploy(): Promise<{ address: string; txHash: string; gasEstimate: bigint; gasLimit: bigint }> {
     if (!this.abi || !this.bytecode) await this.loadArtifact();
-    const factory = new ContractFactory(this.abi!, this.bytecode, this.signer());
-    const deployed = await factory.deploy();
-    const tx = deployed.deploymentTransaction();
-    if (!tx) throw new Error("Deploy did not produce a transaction.");
-    const receipt = await tx.wait();
-    if (!receipt || receipt.status !== 1) {
-      throw new Error("Deploy transaction failed.");
-    }
-    const address = await deployed.getAddress();
-    this.contractAddress = address;
-    return { address, txHash: receipt.hash };
+    return this.withSendLock(async () => {
+      const signer = this.signer();
+      const from = await signer.getAddress();
+      const factory = new ContractFactory(this.abi!, this.bytecode, signer);
+      const unsigned = await factory.getDeployTransaction();
+      const { estimate, gasLimit } = await this.gasLimitFor({ ...unsigned, from }, 1_000_000n);
+      const nonce = await this.nonces.take(() => this.requireProvider().getTransactionCount(from, "pending"));
+      try {
+        const deployed = await factory.deploy({ nonce, gasLimit });
+        const tx = deployed.deploymentTransaction();
+        if (!tx) throw new Error("Deploy did not produce a transaction.");
+        const receipt = await tx.wait();
+        if (!receipt || receipt.status !== 1) throw new Error("Deploy transaction failed.");
+        const address = await deployed.getAddress();
+        this.contractAddress = address;
+        return { address, txHash: receipt.hash, gasEstimate: estimate, gasLimit };
+      } catch (err) {
+        this.nonces.reset();
+        throw this.scrub(err);
+      }
+    });
   }
 
   async pin(recordId: string, commitment: string): Promise<PinReceipt> {
     if (!this.contractAddress) {
       throw new Error("WYRVEL_CONTRACT is not set. Deploy the seal or run e2e step 1.");
     }
-    const signer = this.signer();
-    const seal = this.contract(this.contractAddress, signer);
-    const tx = await seal.getFunction("commit")(recordId, commitment);
-    const receipt = await tx.wait();
+    return this.withSendLock(async () => {
+      const signer = this.signer();
+      const from = await signer.getAddress();
+      const seal = this.contract(this.contractAddress!, signer);
+      const data = seal.interface.encodeFunctionData("commit", [recordId, commitment]);
+      const { gasLimit } = await this.gasLimitFor({ to: this.contractAddress, data, from }, 300_000n);
+      const nonce = await this.nonces.take(() => this.requireProvider().getTransactionCount(from, "pending"));
+      let receipt;
+      try {
+        const tx = await signer.sendTransaction({ to: this.contractAddress, data, from, nonce, gasLimit });
+        receipt = await tx.wait();
+      } catch (err) {
+        this.nonces.reset();
+        throw this.scrub(err);
+      }
+      return this.receiptToPin(seal, receipt, recordId, commitment);
+    });
+  }
+
+  private receiptToPin(
+    seal: Contract,
+    receipt: Awaited<ReturnType<Awaited<ReturnType<Wallet["sendTransaction"]>>["wait"]>>,
+    recordId: string,
+    commitment: string,
+  ): PinReceipt {
     if (!receipt || receipt.status !== 1) {
       throw new Error("Pin transaction failed.");
     }
     const parsed = receipt.logs
-      .map((log: { topics: string[]; data: string }) => {
+      .map((log) => {
         try {
           return seal.interface.parseLog(log);
         } catch {

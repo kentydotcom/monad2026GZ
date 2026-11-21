@@ -2,6 +2,7 @@ import { createReadStream } from "node:fs";
 import { stat } from "node:fs/promises";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { extname, join, normalize } from "node:path";
+import { authorizeBasic } from "./gate.js";
 import { isAddress } from "./hash.js";
 import { Service } from "./service.js";
 import { errorText } from "./chain.js";
@@ -24,12 +25,24 @@ export function startServer(options: {
   port: number;
   staticDir: string | null;
   localAdmin: boolean;
+  gatePassword?: string | null;
 }): Promise<{ port: number; close: () => Promise<void> }> {
   const { service } = options;
+  const gatePassword = options.gatePassword?.trim() ?? "";
 
   const server = createServer(async (req, res) => {
     try {
       const url = new URL(req.url ?? "/", `http://${req.headers.host ?? "localhost"}`);
+      const openHealth = req.method === "GET" && url.pathname === "/v1/health";
+      if (gatePassword && !openHealth && !authorizeBasic(req.headers.authorization, gatePassword)) {
+        res.writeHead(401, {
+          "www-authenticate": 'Basic realm="WYRVEL", charset="UTF-8"',
+          "cache-control": "no-store",
+          "content-type": "text/plain; charset=utf-8",
+        });
+        res.end("Authentication required.");
+        return;
+      }
       if (url.pathname.startsWith("/v1/")) {
         await routeApi(req, res, url, service, options.localAdmin);
         return;

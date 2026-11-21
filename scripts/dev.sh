@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
 # Start a local Judge Tour: Anvil with Monad execution, the seal, the store, and the site.
-# Ctrl-C stops all three. The Anvil account is the published development key, kept in this process only.
+# Ctrl-C stops all three. Anvil account 0 is read from Anvil's log and is not stored here.
 
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 export PATH="$PATH:$HOME/.foundry/bin"
-ANVIL_PRIVATE_KEY="0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
 PID_ANVIL=""
 PID_STORE=""
 PID_WEB=""
+LOG="$ROOT/.e2e-dev-anvil.log"
 
 cleanup() {
   [[ -n "$PID_WEB" ]] && kill "$PID_WEB" >/dev/null 2>&1 || true
@@ -25,7 +25,7 @@ if curl -sf -m 1 -o /dev/null -X POST http://127.0.0.1:8545 \
   exit 1
 fi
 
-anvil --network monad --host 127.0.0.1 --port 8545 >"$ROOT/.e2e-dev-anvil.log" 2>&1 &
+anvil --network monad --host 127.0.0.1 --port 8545 >"$LOG" 2>&1 &
 PID_ANVIL=$!
 for _ in $(seq 1 50); do
   if cast chain-id --rpc-url http://127.0.0.1:8545 >/dev/null 2>&1; then
@@ -34,9 +34,16 @@ for _ in $(seq 1 50); do
   sleep 0.1
 done
 
+KEY="$(awk 'f && $1 == "(0)" { print $2; exit } /Private Keys/ { f = 1 }' "$LOG")"
+if [[ ! "$KEY" =~ ^0x[0-9a-fA-F]{64}$ ]]; then
+  echo "Anvil did not publish account 0." >&2
+  exit 1
+fi
+export PRIVATE_KEY="$KEY"
+
 (
   cd "$ROOT"
-  PRIVATE_KEY="$ANVIL_PRIVATE_KEY" forge script script/Deploy.s.sol:Deploy \
+  forge script script/Deploy.s.sol:Deploy \
     --rpc-url http://127.0.0.1:8545 --broadcast --non-interactive
 )
 CHAIN="$(cast chain-id --rpc-url http://127.0.0.1:8545)"
@@ -47,7 +54,7 @@ mkdir -p "$ROOT/store/data"
 (
   cd "$ROOT/store"
   HOST=127.0.0.1 PORT=8787 DATA_DIR="$ROOT/store/data" \
-    RPC_URL=http://127.0.0.1:8545 PRIVATE_KEY="$ANVIL_PRIVATE_KEY" \
+    RPC_URL=http://127.0.0.1:8545 PRIVATE_KEY="$PRIVATE_KEY" \
     WYRVEL_CONTRACT="$CONTRACT" WYRVEL_LOCAL_ADMIN=1 \
     npm run start --silent
 ) &
