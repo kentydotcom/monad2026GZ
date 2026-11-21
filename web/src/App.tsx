@@ -13,6 +13,8 @@ import {
   type Meta,
   type StepResponse,
 } from "./api";
+import { EvidencePanel } from "./EvidencePanel";
+import { SAMPLE_NOTE, freshEvidence, noteCheck, noteCommit } from "./evidence";
 import { HashDisc, IconChain, IconCheck, IconErase, IconPin, SealFigure } from "./icons";
 import { chainLabel, translateError, translateLine } from "./i18n";
 import { useT } from "./lang";
@@ -60,6 +62,7 @@ export function App() {
   const [step, setStep] = useState(initial.step);
   const [meta, setMeta] = useState<Meta | null>(null);
   const [recordId, setRecordId] = useState(() => sessionStorage.getItem(RECORD_KEY) ?? "");
+  const [evidence, setEvidence] = useState(freshEvidence);
 
   useEffect(() => {
     const onHash = () => {
@@ -166,9 +169,22 @@ export function App() {
       </header>
       <main className="wrap" role="tabpanel">
         {tab === "overview" ? <Overview /> : null}
-        {tab === "commit" ? <CommitPanel meta={meta} onCommitted={remember} /> : null}
+        {tab === "commit" ? (
+          <CommitPanel
+            meta={meta}
+            onCommitted={remember}
+            onPinned={(result, roundTripMs) => setEvidence((prev) => noteCommit(prev, result, roundTripMs))}
+          />
+        ) : null}
         {tab === "erase" ? <ErasePanel recordId={recordId} onRecord={remember} /> : null}
-        {tab === "check" ? <CheckPanel recordId={recordId} onRecord={remember} /> : null}
+        {tab === "check" ? (
+          <CheckPanel
+            recordId={recordId}
+            onRecord={remember}
+            evidence={evidence}
+            onChecked={(result) => setEvidence((prev) => noteCheck(prev, result))}
+          />
+        ) : null}
         {tab === "why" ? <WhyPanel /> : null}
         {tab === "e2e" ? <E2EPanel step={step} /> : null}
         <footer className="foot">
@@ -225,9 +241,11 @@ function Overview() {
 function CommitPanel({
   meta,
   onCommitted,
+  onPinned,
 }: {
   meta: Meta | null;
   onCommitted: (id: string) => void;
+  onPinned: (result: CommitResponse, roundTripMs: number) => void;
 }) {
   const [payload, setPayload] = useState("");
   const [busy, setBusy] = useState(false);
@@ -243,9 +261,11 @@ function CommitPanel({
     setError(null);
     setResult(null);
     try {
+      const started = Date.now();
       const next = await commit(payload);
       setResult(next);
       onCommitted(next.recordId);
+      onPinned(next, Date.now() - started);
     } catch (err) {
       setError(err instanceof Error ? err.message : t.commitFailed);
     } finally {
@@ -276,6 +296,9 @@ function CommitPanel({
         <div className="actions">
           <button className="action" type="submit" disabled={busy}>
             {busy ? t.committing : t.commit}
+          </button>
+          <button className="quiet" type="button" onClick={() => setPayload(SAMPLE_NOTE)}>
+            {t.sample}
           </button>
         </div>
       </form>
@@ -387,9 +410,13 @@ function ErasePanel({
 function CheckPanel({
   recordId,
   onRecord,
+  evidence,
+  onChecked,
 }: {
   recordId: string;
   onRecord: (id: string) => void;
+  evidence: ReturnType<typeof freshEvidence>;
+  onChecked: (result: CheckResponse) => void;
 }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -403,6 +430,7 @@ function CheckPanel({
     try {
       const next = await check(recordId.trim());
       setResult(next);
+      onChecked(next);
       if (next.error) setError(next.error);
     } catch (err) {
       setResult(null);
@@ -412,16 +440,16 @@ function CheckPanel({
     }
   }
 
-  const explorer = explorerHref(result?.explorer);
-  const scan = scanHref(result?.monadscan);
-
   return (
     <section className="panel">
       <p className="kicker">
         <IconCheck /> {t.checker}
       </p>
       <h2>{t.overviewCheckTitle}</h2>
-      <p>{t.checkBody}</p>
+      <ul className="end tight">
+        <li>{t.scenario}</li>
+        <li>{t.limit}</li>
+      </ul>
       <form onSubmit={onSubmit}>
         <label>
           <span>{t.recordId}</span>
@@ -443,6 +471,7 @@ function CheckPanel({
           </button>
         </div>
       </form>
+      <EvidencePanel evidence={evidence} />
       {error ? <p className="notice" role="alert">{translateError(error, lang)}</p> : null}
       {result ? (
         <dl className="fields">
@@ -462,23 +491,6 @@ function CheckPanel({
           <Field k={t.fieldTx} v={result.txHash ?? t.dash} />
         </dl>
       ) : null}
-      {explorer ? (
-        <div className="links">
-          <a href={explorer} target="_blank" rel="noreferrer">
-            {t.openVision}
-          </a>
-          {scan ? (
-            <a href={scan} target="_blank" rel="noreferrer">
-              {t.openScan}
-            </a>
-          ) : null}
-        </div>
-      ) : null}
-      <ul className="end">
-        <li>{t.checkB1}</li>
-        <li>{t.checkB2}</li>
-        <li>{t.checkB3}</li>
-      </ul>
     </section>
   );
 }
@@ -491,11 +503,22 @@ function WhyPanel() {
         <IconChain /> {t.whyKicker}
       </p>
       <h2>{t.why1}</h2>
-      <p>{t.why1Body}</p>
+      <ul className="end tight">
+        <li>{t.why1Body}</li>
+        <li>{t.why1b}</li>
+        <li>{t.why1c}</li>
+      </ul>
       <h2>{t.why2}</h2>
-      <p>{t.why2Body}</p>
+      <ul className="end tight">
+        <li>{t.why2Body}</li>
+        <li>{t.why2b}</li>
+        <li>{t.whyMonadLine}</li>
+      </ul>
       <h2>{t.why3}</h2>
-      <p>{t.why3Body}</p>
+      <ul className="end tight">
+        <li>{t.why3Body}</li>
+        <li>{t.why3b}</li>
+      </ul>
       <div className="links">
         <a href="https://docs.monad.xyz/introduction/why-monad" target="_blank" rel="noreferrer">
           {t.linkWhy}
@@ -510,11 +533,6 @@ function WhyPanel() {
           {t.linkHistory}
         </a>
       </div>
-      <ul className="end">
-        <li>{t.whyB1}</li>
-        <li>{t.whyB2}</li>
-        <li>{t.whyB3}</li>
-      </ul>
     </section>
   );
 }
@@ -562,8 +580,13 @@ function E2EPanel({ step }: { step: number }) {
     <section className="panel">
       <p className="kicker">{t.e2eKicker.replace("{step}", String(step))}</p>
       <h2>{copy.title}</h2>
-      <p>{copy.body}</p>
-      <p className="meta">{t.e2eSame}</p>
+      <ul className="end tight">
+        <li>{copy.body}</li>
+        {copy.success.map((item) => (
+          <li key={item}>{item}</li>
+        ))}
+        {step === 1 ? <li>{t.e2eSame}</li> : null}
+      </ul>
       <div className="actions">
         <button className="action" type="button" onClick={onRun} disabled={busy}>
           {busy ? t.running : t.runStep}
@@ -577,11 +600,6 @@ function E2EPanel({ step }: { step: number }) {
           ))}
         </ul>
       ) : null}
-      <ul className="end">
-        {copy.success.map((item) => (
-          <li key={item}>{item}</li>
-        ))}
-      </ul>
     </section>
   );
 }

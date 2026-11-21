@@ -377,6 +377,24 @@ button:disabled { opacity: 0.55; cursor: wait; }
   margin: 0.35rem 0;
 }
 
+.end.tight { margin-top: 0.4rem; }
+
+.evidence-grid {
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 0.8rem;
+}
+
+.card {
+  border: 1px solid var(--line);
+  padding: 0.75rem 0.85rem;
+  min-height: 6.5rem;
+}
+
+.card p { margin: 0.25rem 0 0; }
+
+.fields.compact { margin-top: 0.8rem; }
+
 .end li::before {
   content: "";
   position: absolute;
@@ -412,6 +430,7 @@ footer p, .foot p {
     grid-template-columns: 1fr 1fr 1fr;
     gap: 0;
   }
+  .evidence-grid { grid-template-columns: 1fr 1fr; }
   .triad article {
     border-top: 0;
     padding: 0 1.25rem;

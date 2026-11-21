@@ -31,13 +31,14 @@ test("simplified Chinese stays on commit, erase, and check", () => {
   assert.match(joined, /链上封存/);
   assert.equal(joined.includes("Proof of Deletion"), false);
   assert.equal(joined.includes("全局删除"), false);
+  assert.match(joined, /团队存储/);
   assert.equal(joined.includes("证明删除"), false);
   assert.equal(copy.zh.byline, "Kent G Lau, PhD");
   assert.equal(copy.en.byline, "Kent G Lau, PhD");
   assert.match(copy.zh.lede, /WYRVEL|哈希/);
-  assert.match(copy.zh.why1Body, /300/);
-  assert.match(copy.zh.why1Body, /600/);
-  assert.match(copy.zh.why3Body, /10143/);
+  assert.match(joined, /300/);
+  assert.match(joined, /600/);
+  assert.match(joined, /10143/);
 });
 
 test("language choice persists and does not clear the tour draft", () => {

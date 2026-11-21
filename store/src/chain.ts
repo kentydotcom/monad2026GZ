@@ -24,6 +24,13 @@ export type PinReceipt = {
   chainId: number;
   explorer: string | null;
   monadscan: string | null;
+  gasUsed: string | null;
+  /** Monad charges this limit, not receipt gasUsed. */
+  gasLimit: string | null;
+  effectiveGasPrice: string | null;
+  feeWei: string | null;
+  /** Submitter clock: send accepted until the receipt. Not a finality figure. */
+  receiptWaitMs: number | null;
 };
 
 type Artifact = {
@@ -204,14 +211,17 @@ export class Chain {
       const { gasLimit } = await this.gasLimitFor({ to: this.contractAddress, data, from }, 300_000n);
       const nonce = await this.nonces.take(() => this.requireProvider().getTransactionCount(from, "pending"));
       let receipt;
+      let receiptWaitMs: number | null = null;
       try {
         const tx = await signer.sendTransaction({ to: this.contractAddress, data, from, nonce, gasLimit });
+        const sentAt = Date.now();
         receipt = await tx.wait();
+        receiptWaitMs = Date.now() - sentAt;
       } catch (err) {
         this.nonces.reset();
         throw this.scrub(err);
       }
-      return this.receiptToPin(seal, receipt, recordId, commitment);
+      return this.receiptToPin(seal, receipt, recordId, commitment, receiptWaitMs, gasLimit);
     });
   }
 
@@ -220,6 +230,8 @@ export class Chain {
     receipt: Awaited<ReturnType<Awaited<ReturnType<Wallet["sendTransaction"]>>["wait"]>>,
     recordId: string,
     commitment: string,
+    receiptWaitMs: number | null,
+    gasLimit: bigint,
   ): PinReceipt {
     if (!receipt || receipt.status !== 1) {
       throw new Error("Pin transaction failed.");
@@ -244,6 +256,10 @@ export class Chain {
     }
     const chainId = this.chainId ?? MONAD_TESTNET_CHAIN_ID;
     const links = publicExplorer(chainId, receipt.hash);
+    const gasUsed = receipt.gasUsed ?? null;
+    const effectiveGasPrice = receipt.gasPrice ?? null;
+    // Monad charges the transaction gas limit, not execution gasUsed.
+    const feeWei = effectiveGasPrice === null ? null : gasLimit * effectiveGasPrice;
     return {
       txHash: receipt.hash,
       blockNumber: Number(receipt.blockNumber),
@@ -252,6 +268,11 @@ export class Chain {
       chainId,
       explorer: links.explorer,
       monadscan: links.monadscan,
+      gasUsed: gasUsed === null ? null : gasUsed.toString(),
+      gasLimit: gasLimit.toString(),
+      effectiveGasPrice: effectiveGasPrice === null ? null : effectiveGasPrice.toString(),
+      feeWei: feeWei === null ? null : feeWei.toString(),
+      receiptWaitMs,
     };
   }
 

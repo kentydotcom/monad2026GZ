@@ -15,6 +15,11 @@ export type Pin = {
   chainId: number;
   explorer: string | null;
   monadscan: string | null;
+  gasUsed: string | null;
+  gasLimit: string | null;
+  effectiveGasPrice: string | null;
+  feeWei: string | null;
+  receiptWaitMs: number | null;
 };
 
 export type CommitResponse = {
