@@ -9,10 +9,11 @@
     "strict": true,
     "skipLibCheck": true,
     "noEmit": true,
+    "allowImportingTsExtensions": true,
     "isolatedModules": true,
     "noUncheckedIndexedAccess": true,
     "types": ["vite/client"]
   },
   "include": ["src"],
-  "exclude": ["src/i18n.test.ts", "src/evidence.test.ts"]
+  "exclude": ["src/i18n.test.ts", "src/evidence.test.ts", "src/chainSession.test.ts"]
 }

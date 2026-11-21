@@ -189,7 +189,9 @@ export function App() {
         ) : null}
         {tab === "why" ? <WhyPanel /> : null}
         {tab === "e2e" ? <E2EPanel step={step} /> : null}
-        {tab === "chain" ? <ChainPanel /> : null}
+        <div hidden={tab !== "chain"}>
+          <ChainPanel active={tab === "chain"} />
+        </div>
         <footer className="foot">
           <p>{t.byline}</p>
           <p>{t.workingName}</p>

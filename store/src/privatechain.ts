@@ -65,6 +65,21 @@ export type ChainResult = {
   replicas: ReplicaReport[];
 };
 
+export type AuditRecord = {
+  found: boolean;
+  code: string;
+  height: number;
+  target: number;
+  index: number | null;
+  hash: string | null;
+  prev: string | null;
+  targetHeader: string | null;
+  commitment: string | null;
+  signer: string | null;
+  authorized: boolean;
+  links: boolean;
+};
+
 export type Observe = {
   nodeId: string;
   role: Role;
@@ -390,8 +405,12 @@ export class PrivateNode {
 
   async importSync(blocks: Array<{ header: Header; signature: string; pruned: boolean; payloadB64: string | null }>): Promise<void> {
     await this.lock(async () => {
-      this.ready = false;
       if (blocks.length < this.committed.length) throw new ChainError("ahead");
+      const same = blocks.length === this.committed.length && blocks.every((block, i) => {
+        const local = this.committed[i];
+        return Boolean(local && headerHash(local.header) === headerHash(block.header));
+      });
+      if (!same) this.ready = false;
       let prev = GENESIS_PREV;
       for (const block of blocks) {
         this.checkEnvelope({ header: block.header, signature: block.signature, payloadB64: block.payloadB64 });
@@ -482,6 +501,54 @@ export class PrivateNode {
       }
       return base;
     });
+  }
+
+  async auditTarget(target: number): Promise<AuditRecord> {
+    return this.lock(async () => this.auditLocked(target));
+  }
+
+  private auditLocked(target: number): AuditRecord {
+    const height = this.height();
+    const data = this.committed[target];
+    const audit = this.committed.find((entry) => entry.header.kind === "prune" && entry.header.target === target);
+    const targetHeader = data ? headerHash(data.header) : null;
+    if (!audit || !data || data.header.kind !== "data") {
+      return {
+        found: false,
+        code: "absent",
+        height,
+        target,
+        index: null,
+        hash: null,
+        prev: null,
+        targetHeader,
+        commitment: null,
+        signer: null,
+        authorized: false,
+        links: false,
+      };
+    }
+    const signer = this.members.find((item) => item.id === audit.header.signer);
+    const signatureOk = Boolean(
+      signer && signer.role === "leader" && verifyHeader(signer.publicKeyPem, audit.header, audit.signature),
+    );
+    const commitmentOk = audit.header.body === pruneCommitment(target, headerHash(data.header));
+    const previous = this.committed[audit.header.index - 1];
+    const links = Boolean(previous && audit.header.prev === headerHash(previous.header));
+    return {
+      found: true,
+      code: signatureOk && commitmentOk && links ? "audit" : "mismatch",
+      height,
+      target,
+      index: audit.header.index,
+      hash: headerHash(audit.header),
+      prev: audit.header.prev,
+      targetHeader,
+      commitment: audit.header.body,
+      signer: audit.header.signer,
+      authorized: signatureOk && commitmentOk,
+      links,
+    };
   }
 
   async syncFrom(leaderUrl: string): Promise<boolean> {
@@ -696,6 +763,7 @@ export type Cluster = {
   append(payload: string): Promise<ChainResult>;
   prune(index: number): Promise<ChainResult>;
   observe(index: number): Promise<Record<string, unknown>>;
+  audit(target: number): Promise<Record<string, unknown>>;
   stop(): Promise<void>;
 };
 
@@ -810,6 +878,34 @@ export async function startCluster(dataRoot: string, ports?: [number, number, nu
       }
       return { ok: true, index, nodes };
     },
+    async audit(target: number) {
+      const nodes = [];
+      for (const id of ids) {
+        try {
+          const record = (await getJson(`${urlOf(id)}/audit?target=${target}`)) as AuditRecord;
+          nodes.push({ ...record, nodeId: id, reachable: true });
+        } catch {
+          nodes.push({
+            nodeId: id,
+            reachable: false,
+            found: false,
+            code: "unreachable",
+            height: null,
+            target,
+            index: null,
+            hash: null,
+            prev: null,
+            targetHeader: null,
+            commitment: null,
+            signer: null,
+            authorized: false,
+            links: false,
+          });
+        }
+      }
+      const leader = nodes.find((item) => item.nodeId === "leader") ?? null;
+      return { ok: Boolean(leader && leader.reachable), target, leader, nodes };
+    },
     async stop() {
       for (const child of children) child.kill("SIGTERM");
       await new Promise((resolve) => setTimeout(resolve, 200));
@@ -849,6 +945,17 @@ async function runNodeProcess(): Promise<void> {
           }
         }
         return send(res, 200, await node.observe(index));
+      }
+      if (req.method === "GET" && url.pathname === "/audit") {
+        const target = Number(url.searchParams.get("target"));
+        if (!Number.isInteger(target)) return send(res, 400, { ok: false, code: "missing" });
+        if (node.role !== "leader") {
+          if (!leaderUrl || !(await node.syncFrom(leaderUrl))) {
+            const closed = await node.auditTarget(target);
+            return send(res, 200, { ...closed, found: false, code: "fail-closed", authorized: false, links: false });
+          }
+        }
+        return send(res, 200, await node.auditTarget(target));
       }
       const body = req.method === "GET" ? null : await readBody(req);
       if (req.method === "POST" && url.pathname === "/propose") {

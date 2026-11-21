@@ -201,6 +201,36 @@ export async function chainObserve(index: number): Promise<ChainObserve> {
   return (await readBody(res)) as ChainObserve;
 }
 
+export type ChainAuditNode = {
+  nodeId?: string;
+  reachable?: boolean;
+  found: boolean;
+  code: string;
+  height: number | null;
+  target: number;
+  index: number | null;
+  hash: string | null;
+  prev: string | null;
+  targetHeader: string | null;
+  commitment: string | null;
+  signer: string | null;
+  authorized: boolean;
+  links: boolean;
+};
+
+export type ChainAudit = {
+  ok: boolean;
+  target?: number;
+  leader?: ChainAuditNode | null;
+  nodes?: ChainAuditNode[];
+  code?: string;
+};
+
+export async function chainAudit(index: number): Promise<ChainAudit> {
+  const res = await fetch(`/v1/pchain/audit/${index}`);
+  return (await readBody(res)) as ChainAudit;
+}
+
 export function formatPin(seconds: number): string {
   const date = new Date(seconds * 1000);
   if (Number.isNaN(date.getTime()) || seconds === 0) return "—";

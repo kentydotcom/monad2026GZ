@@ -24,6 +24,7 @@ export type PrivateChain = {
   append(payload: string): Promise<Record<string, unknown>>;
   prune(index: number): Promise<Record<string, unknown>>;
   observe(index: number): Promise<Record<string, unknown>>;
+  audit(target: number): Promise<Record<string, unknown>>;
 };
 
 export function startServer(options: {
@@ -258,6 +259,11 @@ async function routePrivateChain(
     if (typeof index !== "number" || !Number.isInteger(index)) throw new HttpError(400, "Block index must be an integer.");
     const result = await privateChain.prune(index);
     sendJson(res, result.ok === true ? 200 : 409, result);
+    return;
+  }
+  const audit = url.pathname.match(/^\/v1\/pchain\/audit\/(\d+)$/);
+  if (req.method === "GET" && audit?.[1]) {
+    sendJson(res, 200, await privateChain.audit(Number(audit[1])));
     return;
   }
   const observe = url.pathname.match(/^\/v1\/pchain\/observe\/(\d+)$/);

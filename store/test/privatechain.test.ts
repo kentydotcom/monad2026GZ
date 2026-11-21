@@ -93,6 +93,7 @@ test("append links headers and keeps the payload on every replica", async () => 
     assert.equal(view.payload, PAYLOAD);
     assert.equal(view.headerHash, result.hash);
   }
+  assert.equal((await leader.auditTarget(1)).found, false);
   assert.equal(logs.some((line) => line.includes(PAYLOAD)), false);
   assert.equal(await holds(join(root, "chain"), PAYLOAD), true);
   await rm(root, { recursive: true, force: true });
@@ -123,6 +124,20 @@ test("authorized prune removes active bodies and leaves the header hash", async 
     assert.equal(view.bodyCommitment, before.bodyCommitment);
   }
   assert.equal(await holds(join(root, "chain"), PAYLOAD), false);
+  const record = await leader.auditTarget(1);
+  assert.equal(record.found, true);
+  assert.equal(record.height, 2);
+  assert.equal(record.index, 2);
+  assert.equal(record.target, 1);
+  assert.equal(record.authorized, true);
+  assert.equal(record.links, true);
+  assert.equal(record.code, "audit");
+  assert.equal(record.hash, headerHash(audit.header));
+  assert.equal(record.targetHeader, before.headerHash);
+  assert.equal(record.prev, before.headerHash);
+  assert.notEqual(record.hash, before.headerHash);
+  assert.equal(JSON.stringify(record).includes(PAYLOAD), false);
+  assert.equal((await leader.auditTarget(9)).found, false);
   const vault = await readFile(join(root, "index.json"), "utf8");
   assert.match(vault, /vault-record-must-stay/);
   await rm(root, { recursive: true, force: true });
@@ -240,6 +255,16 @@ test("three processes accept a block and a prune", async () => {
     };
     assert.equal(after.nodes.every((node) => node.code === "pruned" && node.payload === null && node.headerHash === header), true);
     assert.equal(JSON.stringify(after).includes(PAYLOAD), false);
+    const audit = (await cluster.audit(appended.index ?? -1)) as {
+      leader: { found: boolean; height: number; index: number; hash: string; authorized: boolean; links: boolean; code: string };
+    };
+    assert.equal(audit.leader.found, true);
+    assert.equal(audit.leader.height, 2);
+    assert.equal(audit.leader.index, 2);
+    assert.equal(audit.leader.authorized, true);
+    assert.equal(audit.leader.links, true);
+    assert.equal(audit.leader.code, "audit");
+    assert.equal(JSON.stringify(audit).includes(PAYLOAD), false);
   } finally {
     await cluster.stop();
     await rm(root, { recursive: true, force: true });

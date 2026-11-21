@@ -202,6 +202,18 @@ run_all() {
   else
     bad "prune status ${status}"
   fi
+  local audit
+  audit="$(curl -sS -m 4 "http://127.0.0.1:${LEADER_PORT}/audit?target=${INDEX}")"
+  if AUDIT="$audit" HEADER="$HEADER" python3 -c 'import json,os,sys; a=json.loads(os.environ["AUDIT"]); sys.exit(0 if a.get("found") and a.get("height")==2 and a.get("index")==2 and a.get("authorized") and a.get("links") and a.get("code")=="audit" and a.get("hash") and a.get("prev")==os.environ["HEADER"] else 1)'; then
+    pass "audit block 2 links the header and the leader signature"
+  else
+    bad "audit ${audit}"
+  fi
+  if printf '%s' "$audit" | grep -F -q "$PAYLOAD"; then
+    bad "audit response contained the payload"
+  else
+    pass "audit response has no payload"
+  fi
   if printf '%s' "$prune" | grep -F -q "$PAYLOAD"; then
     bad "prune response contained the payload"
   else
